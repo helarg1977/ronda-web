@@ -39,6 +39,7 @@ export default function App() {
   const [enviando, setEnviando] = useState(false)
   const [modalSolicitud, setModalSolicitud] = useState(false)
   const [toast, setToast] = useState('')
+  const [ultimoPedido, setUltimoPedido] = useState(null) // { productoId: cantidad } del último pedido enviado
 
   const mostrarToast = useCallback((msg) => {
     setToast(msg)
@@ -183,19 +184,25 @@ export default function App() {
     })
   }
 
-  async function enviarPedido() {
-    if (enviando || totalItems === 0) return
+  async function crearPedido(itemsMap) {
+    const entries = Object.entries(itemsMap).filter(([, cant]) => cant > 0)
+    if (entries.length === 0) return
     setEnviando(true)
     try {
+      const totalCalculado = entries.reduce((sum, [prodId, cant]) => {
+        const p = productos.find((x) => x.id === prodId)
+        return sum + (p ? p.precio * cant : 0)
+      }, 0)
+
       const { data: nuevoPedido, error: pedidoErr } = await supabase
         .from('pedidos')
-        .insert({ bar_id: bar.id, mesa_id: mesa.id, estado: 'pendiente', total: totalPrecio })
+        .insert({ bar_id: bar.id, mesa_id: mesa.id, estado: 'pendiente', total: totalCalculado })
         .select()
         .single()
 
       if (pedidoErr) throw pedidoErr
 
-      const items = Object.entries(carrito).map(([prodId, cant]) => {
+      const items = entries.map(([prodId, cant]) => {
         const p = productos.find((x) => x.id === prodId)
         return {
           pedido_id: nuevoPedido.id,
@@ -208,14 +215,25 @@ export default function App() {
       if (itemsErr) throw itemsErr
 
       localStorage.setItem(storageKey(mesa.id), nuevoPedido.id)
+      setUltimoPedido(Object.fromEntries(entries))
       setPedido(nuevoPedido)
-      setCarrito({})
       setFase('seguimiento')
     } catch (e) {
       mostrarToast('No pudimos enviar tu pedido. Intenta de nuevo.')
     } finally {
       setEnviando(false)
     }
+  }
+
+  async function enviarPedido() {
+    if (enviando || totalItems === 0) return
+    await crearPedido(carrito)
+    setCarrito({})
+  }
+
+  async function repetirPedido() {
+    if (enviando || !ultimoPedido) return
+    await crearPedido(ultimoPedido)
   }
 
   async function enviarSolicitud(tipo) {
@@ -287,6 +305,12 @@ export default function App() {
               <span>{money(totalPrecio)}</span>
               <span>Ver pedido →</span>
             </div>
+          )}
+
+          {totalItems === 0 && ultimoPedido && (
+            <button className="barra-repetir" onClick={repetirPedido} disabled={enviando}>
+              {enviando ? 'Enviando…' : '🔁 Otra ronda (repetir el mismo pedido)'}
+            </button>
           )}
         </>
       )}
