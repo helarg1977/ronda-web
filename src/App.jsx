@@ -141,6 +141,12 @@ export default function App() {
           setPedido(payload.new)
           if (['entregado', 'cancelado'].includes(payload.new.estado)) {
             localStorage.removeItem(storageKey(mesa.id))
+            setTimeout(async () => {
+              if (categorias.length === 0) {
+                await cargarMenu(bar.id)
+              }
+              setFase('menu')
+            }, 3000)
           }
         }
       )
