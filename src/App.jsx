@@ -44,6 +44,9 @@ export default function App() {
   const [modalSolicitud, setModalSolicitud] = useState(false)
   const [toast, setToast] = useState('')
   const [ultimoPedido, setUltimoPedido] = useState(null) // { productoId: cantidad } del último pedido enviado
+  const [modalCuenta, setModalCuenta] = useState(false)
+  const [cuentaPedidos, setCuentaPedidos] = useState([])
+  const [cargandoCuenta, setCargandoCuenta] = useState(false)
 
   const mostrarToast = useCallback((msg) => {
     setToast(msg)
@@ -63,7 +66,7 @@ export default function App() {
 
       const { data: mesaData, error: mesaErr } = await supabase
         .from('mesas')
-        .select('id, numero, bar_id, activa')
+        .select('id, numero, bar_id, activa, sesion_actual')
         .eq('qr_code', qr)
         .eq('activa', true)
         .maybeSingle()
@@ -223,7 +226,7 @@ export default function App() {
 
       const { data: nuevoPedido, error: pedidoErr } = await supabase
         .from('pedidos')
-        .insert({ bar_id: bar.id, mesa_id: mesa.id, estado: 'pendiente', total: totalCalculado })
+        .insert({ bar_id: bar.id, mesa_id: mesa.id, estado: 'pendiente', total: totalCalculado, sesion_id: mesa.sesion_actual })
         .select()
         .single()
 
@@ -272,6 +275,20 @@ export default function App() {
     } else {
       mostrarToast('Ya avisamos al mesero 👍')
     }
+  }
+
+  async function abrirCuenta() {
+    setCargandoCuenta(true)
+    setModalCuenta(true)
+    const { data } = await supabase
+      .from('pedidos')
+      .select('id, estado, total, created_at')
+      .eq('mesa_id', mesa.id)
+      .eq('sesion_id', mesa.sesion_actual)
+      .neq('estado', 'cancelado')
+      .order('created_at', { ascending: true })
+    setCuentaPedidos(data || [])
+    setCargandoCuenta(false)
   }
 
   // --- Pantallas ---
@@ -394,7 +411,37 @@ export default function App() {
         </main>
       )}
 
+      <button className="btn-flotante btn-flotante-cuenta" onClick={abrirCuenta}>🧾 Mi cuenta</button>
       <button className="btn-flotante" onClick={() => setModalSolicitud(true)}>✋ Necesito algo</button>
+
+      {modalCuenta && (
+        <div className="modal-overlay" onClick={() => setModalCuenta(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Mi cuenta — Mesa {mesa?.numero}</h3>
+            {cargandoCuenta && <p className="vacio">Cargando…</p>}
+            {!cargandoCuenta && cuentaPedidos.length === 0 && (
+              <p className="vacio">Todavía no has hecho ningún pedido en esta visita.</p>
+            )}
+            {!cargandoCuenta && cuentaPedidos.length > 0 && (
+              <>
+                <div className="cuenta-lista">
+                  {cuentaPedidos.map((p, i) => (
+                    <div key={p.id} className="cuenta-fila">
+                      <span>Ronda {i + 1} — {ESTADO_LABEL[p.estado] || p.estado}</span>
+                      <span>{money(p.total)}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="cuenta-total">
+                  <strong>Total de la mesa</strong>
+                  <strong>{money(cuentaPedidos.reduce((s, p) => s + Number(p.total), 0))}</strong>
+                </div>
+              </>
+            )}
+            <button className="btn-secundario" onClick={() => setModalCuenta(false)}>Cerrar</button>
+          </div>
+        </div>
+      )}
 
       {modalSolicitud && (
         <div className="modal-overlay" onClick={() => setModalSolicitud(false)}>
