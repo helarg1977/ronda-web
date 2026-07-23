@@ -90,6 +90,19 @@ body {
   font-size: 17px;
 }
 
+.barra-repetir {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: var(--card);
+  color: var(--accent);
+  font-weight: 700;
+  border: none;
+  border-top: 2px solid var(--accent);
+  padding: 18px 20px;
+  font-size: 17px;
+}
+.barra-repetir:disabled { opacity: 0.5; }
+
 .carrito-view, .seguimiento-view { padding: 20px 16px; flex: 1; }
 .carrito-item {
   display: flex; align-items: center; justify-content: space-between;
