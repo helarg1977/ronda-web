@@ -280,14 +280,29 @@ export default function App() {
   async function abrirCuenta() {
     setCargandoCuenta(true)
     setModalCuenta(true)
-    const { data } = await supabase
+    const { data: pedidosData } = await supabase
       .from('pedidos')
       .select('id, estado, total, created_at')
       .eq('mesa_id', mesa.id)
       .eq('sesion_id', mesa.sesion_actual)
       .neq('estado', 'cancelado')
       .order('created_at', { ascending: true })
-    setCuentaPedidos(data || [])
+
+    const pedidosIds = (pedidosData || []).map((p) => p.id)
+    let itemsPorPedido = {}
+    if (pedidosIds.length > 0) {
+      const { data: itemsData } = await supabase
+        .from('pedido_items')
+        .select('pedido_id, cantidad, precio_unitario, productos(nombre)')
+        .in('pedido_id', pedidosIds)
+      itemsPorPedido = (itemsData || []).reduce((acc, it) => {
+        if (!acc[it.pedido_id]) acc[it.pedido_id] = []
+        acc[it.pedido_id].push(it)
+        return acc
+      }, {})
+    }
+
+    setCuentaPedidos((pedidosData || []).map((p) => ({ ...p, items: itemsPorPedido[p.id] || [] })))
     setCargandoCuenta(false)
   }
 
@@ -426,9 +441,17 @@ export default function App() {
               <>
                 <div className="cuenta-lista">
                   {cuentaPedidos.map((p, i) => (
-                    <div key={p.id} className="cuenta-fila">
-                      <span>Ronda {i + 1} — {ESTADO_LABEL[p.estado] || p.estado}</span>
-                      <span>{money(p.total)}</span>
+                    <div key={p.id} className="cuenta-ronda">
+                      <div className="cuenta-fila cuenta-fila-titulo">
+                        <span>Ronda {i + 1} — {ESTADO_LABEL[p.estado] || p.estado}</span>
+                        <span>{money(p.total)}</span>
+                      </div>
+                      {p.items.map((it, j) => (
+                        <div key={j} className="cuenta-fila-item">
+                          <span>{it.cantidad}x {it.productos?.nombre}</span>
+                          <span>{money(it.precio_unitario * it.cantidad)}</span>
+                        </div>
+                      ))}
                     </div>
                   ))}
                 </div>
