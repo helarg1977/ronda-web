@@ -22,6 +22,10 @@ function storageKey(mesaId) {
   return `ronda_pedido_${mesaId}`
 }
 
+function ultimoPedidoKey(mesaId) {
+  return `ronda_ultimo_pedido_${mesaId}`
+}
+
 function money(n) {
   return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n)
 }
@@ -86,6 +90,15 @@ export default function App() {
       setMesa(mesaData)
       setBar(barData)
 
+      const ultimoGuardado = localStorage.getItem(ultimoPedidoKey(mesaData.id))
+      if (ultimoGuardado) {
+        try {
+          setUltimoPedido(JSON.parse(ultimoGuardado))
+        } catch (e) {
+          localStorage.removeItem(ultimoPedidoKey(mesaData.id))
+        }
+      }
+
       // ¿ya hay un pedido activo guardado para esta mesa?
       const savedId = localStorage.getItem(storageKey(mesaData.id))
       if (savedId) {
@@ -133,6 +146,18 @@ export default function App() {
   // --- Suscripción en tiempo real al estado del pedido ---
   useEffect(() => {
     if (fase !== 'seguimiento' || !pedido?.id) return
+
+    let yaVolviendo = false
+    async function manejarSiEntregado(estado) {
+      if (yaVolviendo || !['entregado', 'cancelado'].includes(estado)) return
+      yaVolviendo = true
+      localStorage.removeItem(storageKey(mesa.id))
+      setTimeout(async () => {
+        if (bar) await cargarMenu(bar.id)
+        setFase('menu')
+      }, 2500)
+    }
+
     const channel = supabase
       .channel(`pedido-${pedido.id}`)
       .on(
@@ -140,23 +165,25 @@ export default function App() {
         { event: 'UPDATE', schema: 'public', table: 'pedidos', filter: `id=eq.${pedido.id}` },
         (payload) => {
           setPedido(payload.new)
-          if (['entregado', 'cancelado'].includes(payload.new.estado)) {
-            localStorage.removeItem(storageKey(mesa.id))
-            setTimeout(async () => {
-              if (categorias.length === 0) {
-                await cargarMenu(bar.id)
-              }
-              setFase('menu')
-            }, 3000)
-          }
+          manejarSiEntregado(payload.new.estado)
         }
       )
       .subscribe()
 
+    // Respaldo: si por algún motivo no llega el evento en tiempo real, igual lo detectamos revisando cada 4s
+    const intervalo = setInterval(async () => {
+      const { data } = await supabase.from('pedidos').select('id, estado, total, mesa_id').eq('id', pedido.id).maybeSingle()
+      if (data) {
+        setPedido(data)
+        manejarSiEntregado(data.estado)
+      }
+    }, 4000)
+
     return () => {
       supabase.removeChannel(channel)
+      clearInterval(intervalo)
     }
-  }, [fase, pedido?.id, mesa])
+  }, [fase, pedido?.id, mesa, bar])
 
   const productosVisibles = useMemo(
     () => productos.filter((p) => p.categoria_id === categoriaActiva),
@@ -215,6 +242,7 @@ export default function App() {
       if (itemsErr) throw itemsErr
 
       localStorage.setItem(storageKey(mesa.id), nuevoPedido.id)
+      localStorage.setItem(ultimoPedidoKey(mesa.id), JSON.stringify(Object.fromEntries(entries)))
       setUltimoPedido(Object.fromEntries(entries))
       setPedido(nuevoPedido)
       setFase('seguimiento')
