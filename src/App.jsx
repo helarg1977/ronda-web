@@ -50,6 +50,7 @@ export default function App() {
   const [upsell, setUpsell] = useState(null) // producto sugerido a mostrar
   const [calificacion, setCalificacion] = useState(0)
   const [propinaEnviada, setPropinaEnviada] = useState(false)
+  const [topProductoId, setTopProductoId] = useState(null)
 
   const mostrarToast = useCallback((msg) => {
     setToast(msg)
@@ -147,6 +148,20 @@ export default function App() {
     setCategorias(cats || [])
     setProductos(prods || [])
     if (cats && cats.length) setCategoriaActiva(cats[0].id)
+
+    // Calcular el producto más pedido del bar (para la insignia "🔥 más pedido")
+    const { data: itemsVendidos } = await supabase
+      .from('pedido_items')
+      .select('producto_id, cantidad, pedidos!inner(bar_id)')
+      .eq('pedidos.bar_id', barId)
+    if (itemsVendidos && itemsVendidos.length > 0) {
+      const conteo = {}
+      itemsVendidos.forEach((it) => {
+        conteo[it.producto_id] = (conteo[it.producto_id] || 0) + it.cantidad
+      })
+      const top = Object.entries(conteo).sort((a, b) => b[1] - a[1])[0]
+      if (top && top[1] >= 3) setTopProductoId(top[0]) // solo se destaca si ya tiene al menos 3 unidades vendidas
+    }
   }
 
   // --- Suscripción en tiempo real al estado del pedido ---
@@ -360,11 +375,21 @@ export default function App() {
 
   // --- Pantallas ---
   if (fase === 'cargando') {
-    return <CenterMsg>Cargando…</CenterMsg>
+    return (
+      <div className="center-msg">
+        <div className="spinner" />
+        <p>Abriendo la carta…</p>
+      </div>
+    )
   }
 
   if (fase === 'error') {
-    return <CenterMsg>{errorMsg}</CenterMsg>
+    return (
+      <div className="center-msg">
+        <div className="center-msg-icono">🍸</div>
+        <p>{errorMsg}</p>
+      </div>
+    )
   }
 
   return (
@@ -392,7 +417,14 @@ export default function App() {
           <main className="productos">
             {productosVisibles.map((p) => (
               <div key={p.id} className="producto-card">
-                {p.foto_url && <img src={p.foto_url} alt={p.nombre} className="producto-foto" />}
+                {p.id === topProductoId && <span className="producto-badge">🔥 Más pedido</span>}
+                {p.foto_url ? (
+                  <img src={p.foto_url} alt={p.nombre} className="producto-foto" />
+                ) : (
+                  <div className="producto-icono">
+                    {categorias.find((c) => c.id === p.categoria_id)?.icono || '🍸'}
+                  </div>
+                )}
                 <div className="producto-info">
                   <div className="producto-nombre">{p.nombre}</div>
                   <div className="producto-precio">{money(p.precio)}</div>
@@ -574,10 +606,3 @@ export default function App() {
   )
 }
 
-function CenterMsg({ children }) {
-  return (
-    <div className="center-msg">
-      <p>{children}</p>
-    </div>
-  )
-}
