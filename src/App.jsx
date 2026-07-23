@@ -47,6 +47,9 @@ export default function App() {
   const [modalCuenta, setModalCuenta] = useState(false)
   const [cuentaPedidos, setCuentaPedidos] = useState([])
   const [cargandoCuenta, setCargandoCuenta] = useState(false)
+  const [upsell, setUpsell] = useState(null) // producto sugerido a mostrar
+  const [calificacion, setCalificacion] = useState(0)
+  const [propinaEnviada, setPropinaEnviada] = useState(false)
 
   const mostrarToast = useCallback((msg) => {
     setToast(msg)
@@ -107,7 +110,7 @@ export default function App() {
       if (savedId) {
         const { data: pedidoData } = await supabase
           .from('pedidos')
-          .select('id, estado, total, mesa_id')
+          .select('id, estado, total, mesa_id, mesero_id')
           .eq('id', savedId)
           .maybeSingle()
 
@@ -136,7 +139,7 @@ export default function App() {
 
     const { data: prods } = await supabase
       .from('productos')
-      .select('id, categoria_id, nombre, descripcion, precio, foto_url, disponible, orden')
+      .select('id, categoria_id, nombre, descripcion, precio, foto_url, disponible, orden, producto_sugerido_id')
       .eq('bar_id', barId)
       .eq('disponible', true)
       .order('orden', { ascending: true })
@@ -150,15 +153,23 @@ export default function App() {
   useEffect(() => {
     if (fase !== 'seguimiento' || !pedido?.id) return
 
-    let yaVolviendo = false
+    let yaProcesado = false
     async function manejarSiEntregado(estado) {
-      if (yaVolviendo || !['entregado', 'cancelado'].includes(estado)) return
-      yaVolviendo = true
+      if (yaProcesado || !['entregado', 'cancelado'].includes(estado)) return
+      yaProcesado = true
       localStorage.removeItem(storageKey(mesa.id))
-      setTimeout(async () => {
-        if (bar) await cargarMenu(bar.id)
-        setFase('menu')
-      }, 2500)
+      if (estado === 'cancelado') {
+        setTimeout(async () => {
+          if (bar) await cargarMenu(bar.id)
+          setFase('menu')
+        }, 2500)
+      } else {
+        // Damos tiempo para que el cliente vea la propina antes de volver solo al menú
+        setTimeout(async () => {
+          if (bar) await cargarMenu(bar.id)
+          setFase((f) => (f === 'seguimiento' ? 'menu' : f))
+        }, 25000)
+      }
     }
 
     const channel = supabase
@@ -175,7 +186,7 @@ export default function App() {
 
     // Respaldo: si por algún motivo no llega el evento en tiempo real, igual lo detectamos revisando cada 4s
     const intervalo = setInterval(async () => {
-      const { data } = await supabase.from('pedidos').select('id, estado, total, mesa_id').eq('id', pedido.id).maybeSingle()
+      const { data } = await supabase.from('pedidos').select('id, estado, total, mesa_id, mesero_id').eq('id', pedido.id).maybeSingle()
       if (data) {
         setPedido(data)
         manejarSiEntregado(data.estado)
@@ -187,6 +198,31 @@ export default function App() {
       clearInterval(intervalo)
     }
   }, [fase, pedido?.id, mesa, bar])
+
+  async function enviarPropina(pct) {
+    if (!pedido) return
+    const monto = Math.round(pedido.total * pct)
+    await supabase.from('propinas').insert({
+      pedido_id: pedido.id,
+      mesero_id: pedido.mesero_id || null,
+      monto,
+      calificacion: calificacion || null,
+    })
+    mostrarToast(`¡Gracias! Propina de ${money(monto)} registrada 🙌`)
+    setPropinaEnviada(true)
+    setTimeout(async () => {
+      if (bar) await cargarMenu(bar.id)
+      setFase('menu')
+    }, 1800)
+  }
+
+  async function terminarSinPropina() {
+    if (calificacion > 0 && pedido) {
+      await supabase.from('propinas').insert({ pedido_id: pedido.id, mesero_id: pedido.mesero_id || null, monto: 0, calificacion })
+    }
+    if (bar) await cargarMenu(bar.id)
+    setFase('menu')
+  }
 
   const productosVisibles = useMemo(
     () => productos.filter((p) => p.categoria_id === categoriaActiva),
@@ -202,6 +238,20 @@ export default function App() {
   }, [carrito, productos])
 
   function agregar(productoId) {
+    setCarrito((c) => ({ ...c, [productoId]: (c[productoId] || 0) + 1 }))
+
+    const producto = productos.find((p) => p.id === productoId)
+    if (producto?.producto_sugerido_id && !carrito[producto.producto_sugerido_id]) {
+      const sugerido = productos.find((p) => p.id === producto.producto_sugerido_id)
+      if (sugerido) setUpsell(sugerido)
+    }
+  }
+  function agregarSugerido() {
+    if (!upsell) return
+    agregarSinUpsell(upsell.id)
+    setUpsell(null)
+  }
+  function agregarSinUpsell(productoId) {
     setCarrito((c) => ({ ...c, [productoId]: (c[productoId] || 0) + 1 }))
   }
   function quitar(productoId) {
@@ -248,6 +298,8 @@ export default function App() {
       localStorage.setItem(ultimoPedidoKey(mesa.id), JSON.stringify(Object.fromEntries(entries)))
       setUltimoPedido(Object.fromEntries(entries))
       setPedido(nuevoPedido)
+      setCalificacion(0)
+      setPropinaEnviada(false)
       setFase('seguimiento')
     } catch (e) {
       mostrarToast('No pudimos enviar tu pedido. Intenta de nuevo.')
@@ -359,6 +411,16 @@ export default function App() {
             {productosVisibles.length === 0 && <p className="vacio">No hay productos en esta categoría.</p>}
           </main>
 
+          {upsell && (
+            <div className="upsell-banner">
+              <span>¿Agregas {upsell.nombre} por {money(upsell.precio)}?</span>
+              <div className="upsell-botones">
+                <button className="upsell-si" onClick={agregarSugerido}>Sí, agregar</button>
+                <button className="upsell-no" onClick={() => setUpsell(null)}>No, gracias</button>
+              </div>
+            </div>
+          )}
+
           {totalItems > 0 && (
             <div className="barra-carrito" onClick={() => setFase('carrito')}>
               <span>{totalItems} producto{totalItems > 1 ? 's' : ''}</span>
@@ -423,6 +485,33 @@ export default function App() {
             <span>Total del pedido</span>
             <strong>{money(pedido.total)}</strong>
           </div>
+
+          {pedido.estado === 'entregado' && !propinaEnviada && (
+            <div className="propina-box">
+              <p className="propina-titulo">¿Cómo te atendieron?</p>
+              <div className="estrellas">
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <span
+                    key={n}
+                    className={`estrella ${n <= calificacion ? 'estrella-activa' : ''}`}
+                    onClick={() => setCalificacion(n)}
+                  >
+                    ★
+                  </span>
+                ))}
+              </div>
+              <p className="propina-titulo">¿Dejamos propina?</p>
+              <div className="propina-botones">
+                <button onClick={() => enviarPropina(0.10)}>10%</button>
+                <button onClick={() => enviarPropina(0.15)}>15%</button>
+                <button onClick={() => enviarPropina(0.20)}>20%</button>
+              </div>
+              <button className="btn-secundario" onClick={terminarSinPropina}>No, gracias</button>
+            </div>
+          )}
+          {pedido.estado === 'entregado' && propinaEnviada && (
+            <p className="propina-gracias">¡Gracias por tu propina! 🙌</p>
+          )}
         </main>
       )}
 
