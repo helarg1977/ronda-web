@@ -161,10 +161,12 @@ body {
   bottom: 160px;
 }
 
-.cuenta-lista { max-height: 260px; overflow-y: auto; }
-.cuenta-fila {
+.cuenta-lista { max-height: 300px; overflow-y: auto; }
+.cuenta-ronda { border-bottom: 1px solid #2a2a3a; padding-bottom: 8px; margin-bottom: 8px; }
+.cuenta-fila-titulo { font-weight: 700; font-size: 15px; padding: 10px 0 4px; }
+.cuenta-fila-item {
   display: flex; justify-content: space-between;
-  padding: 12px 0; border-bottom: 1px solid #2a2a3a; font-size: 15px;
+  padding: 4px 0 4px 14px; font-size: 14px; color: var(--text-dim);
 }
 .cuenta-total {
   display: flex; justify-content: space-between;
