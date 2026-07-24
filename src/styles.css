@@ -64,11 +64,15 @@ body {
 }
 
 .total-visita {
-  margin: 14px 16px 0;
-  background: var(--card);
-  border: 1px solid var(--card-borde);
-  border-radius: 14px;
-  padding: 14px 16px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  margin: 0;
+  background: rgba(23, 19, 32, 0.94);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--card-borde);
+  border-radius: 0;
+  padding: 14px 18px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -159,6 +163,7 @@ body {
 .producto-info { flex: 1; min-width: 0; }
 .producto-nombre { font-size: 17px; font-weight: 700; }
 .producto-precio { color: var(--accent); font-size: 15px; margin-top: 3px; font-weight: 700; }
+.producto-combo { color: var(--neon); font-size: 12px; margin-top: 4px; font-weight: 600; }
 .producto-badge {
   position: absolute; top: -8px; left: 12px;
   background: var(--neon); color: #17131f;
@@ -323,6 +328,11 @@ body {
 .btn-flotante-cuenta { bottom: 158px; }
 
 /* --- Cuenta --- */
+.historial-titulo {
+  font-family: var(--font-display); font-size: 26px; color: var(--accent);
+  letter-spacing: 0.4px; margin: 30px 16px 12px;
+}
+.historial-lista { padding: 0 16px 20px; }
 .cuenta-lista { max-height: 300px; overflow-y: auto; }
 .cuenta-ronda { border-bottom: 1px solid var(--card-borde); padding-bottom: 8px; margin-bottom: 8px; }
 .cuenta-fila-titulo { font-weight: 700; font-size: 14px; padding: 10px 0 4px; }
