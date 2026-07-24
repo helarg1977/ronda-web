@@ -2,6 +2,12 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react'
 import { supabase } from './supabaseClient'
 
 const ESTADOS = ['pendiente', 'confirmado', 'preparando', 'en_camino', 'entregado']
+const METODOS_PAGO = [
+  { id: 'efectivo', label: '💵 Efectivo' },
+  { id: 'nequi', label: '📱 Nequi', llaveField: 'llave_nequi' },
+  { id: 'daviplata', label: '📱 Daviplata', llaveField: 'llave_daviplata' },
+  { id: 'bre_b', label: '📱 Bre-B', llaveField: 'llave_bre_b' },
+]
 const ESTADO_LABEL = {
   pendiente: 'Pedido enviado',
   confirmado: 'Confirmado',
@@ -51,6 +57,9 @@ export default function App() {
   const [calificacion, setCalificacion] = useState(0)
   const [propinaEnviada, setPropinaEnviada] = useState(false)
   const [topProductoId, setTopProductoId] = useState(null)
+  const [metodoPago, setMetodoPago] = useState('efectivo')
+  const [comprobanteUrl, setComprobanteUrl] = useState(null)
+  const [subiendoComprobante, setSubiendoComprobante] = useState(false)
 
   const mostrarToast = useCallback((msg) => {
     setToast(msg)
@@ -83,7 +92,7 @@ export default function App() {
 
       const { data: barData, error: barErr } = await supabase
         .from('bares')
-        .select('id, nombre, logo_url, activo')
+        .select('id, nombre, logo_url, activo, llave_nequi, llave_daviplata, llave_bre_b')
         .eq('id', mesaData.bar_id)
         .eq('activo', true)
         .maybeSingle()
@@ -279,6 +288,23 @@ export default function App() {
     })
   }
 
+  async function subirComprobante(file) {
+    if (!file) return
+    setSubiendoComprobante(true)
+    try {
+      const nombreArchivo = `${mesa.id}_${Date.now()}_${file.name}`
+      const { error } = await supabase.storage.from('comprobantes').upload(nombreArchivo, file)
+      if (error) throw error
+      const { data } = supabase.storage.from('comprobantes').getPublicUrl(nombreArchivo)
+      setComprobanteUrl(data.publicUrl)
+      mostrarToast('Comprobante subido ✅')
+    } catch (e) {
+      mostrarToast('No se pudo subir el comprobante. Intenta de nuevo.')
+    } finally {
+      setSubiendoComprobante(false)
+    }
+  }
+
   async function crearPedido(itemsMap) {
     const entries = Object.entries(itemsMap).filter(([, cant]) => cant > 0)
     if (entries.length === 0) return
@@ -309,12 +335,22 @@ export default function App() {
       const { error: itemsErr } = await supabase.from('pedido_items').insert(items)
       if (itemsErr) throw itemsErr
 
+      await supabase.from('pagos').insert({
+        pedido_id: nuevoPedido.id,
+        metodo: metodoPago,
+        monto: totalCalculado,
+        comprobante_url: comprobanteUrl || null,
+        confirmado: false,
+      })
+
       localStorage.setItem(storageKey(mesa.id), nuevoPedido.id)
       localStorage.setItem(ultimoPedidoKey(mesa.id), JSON.stringify(Object.fromEntries(entries)))
       setUltimoPedido(Object.fromEntries(entries))
       setPedido(nuevoPedido)
       setCalificacion(0)
       setPropinaEnviada(false)
+      setMetodoPago('efectivo')
+      setComprobanteUrl(null)
       setFase('seguimiento')
     } catch (e) {
       mostrarToast('No pudimos enviar tu pedido. Intenta de nuevo.')
@@ -491,6 +527,37 @@ export default function App() {
             <strong>Total</strong>
             <strong>{money(totalPrecio)}</strong>
           </div>
+
+          <p className="pago-titulo">¿Cómo vas a pagar?</p>
+          <div className="pago-metodos">
+            {METODOS_PAGO.filter((m) => m.id === 'efectivo' || bar[m.llaveField]).map((m) => (
+              <button
+                key={m.id}
+                className={`pago-btn ${metodoPago === m.id ? 'activo' : ''}`}
+                onClick={() => setMetodoPago(m.id)}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+
+          {metodoPago !== 'efectivo' && (
+            <div className="pago-detalle">
+              <p className="pago-numero">
+                Transfiere a: <strong>{bar[METODOS_PAGO.find((m) => m.id === metodoPago).llaveField]}</strong>
+              </p>
+              <label className="pago-subir">
+                {subiendoComprobante ? 'Subiendo…' : comprobanteUrl ? '✅ Comprobante subido — cambiar' : '📎 Subir foto del comprobante'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={(e) => subirComprobante(e.target.files[0])}
+                />
+              </label>
+            </div>
+          )}
+
           <button className="btn-primario" disabled={enviando || totalItems === 0} onClick={enviarPedido}>
             {enviando ? 'Enviando…' : 'Enviar pedido'}
           </button>
