@@ -63,6 +63,47 @@ body {
   border-radius: 999px;
 }
 
+.total-visita {
+  margin: 14px 16px 0;
+  background: var(--card);
+  border: 1px solid var(--card-borde);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.total-visita span { color: var(--text-dim); font-size: 13px; text-transform: uppercase; letter-spacing: 0.4px; }
+.total-visita strong { font-size: 20px; color: var(--accent); }
+
+.banner-estado {
+  margin: 12px 16px 0;
+  background: var(--card);
+  border: 1px solid var(--accent);
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.banner-icono { font-size: 28px; }
+.banner-texto { flex: 1; }
+.banner-titulo { font-size: 15px; font-weight: 700; }
+.banner-total { color: var(--accent); font-size: 14px; margin-top: 2px; font-weight: 700; }
+.banner-editar {
+  background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent);
+  border-radius: 10px; padding: 8px 12px; font-size: 13px; font-weight: 700; white-space: nowrap;
+}
+.banner-entregado { border-color: var(--exito); }
+
+.campo-nombre { margin: 14px 16px 0; }
+.campo-nombre label { display: block; color: var(--text-dim); font-size: 13px; margin-bottom: 6px; font-weight: 600; }
+.campo-nombre input {
+  width: 100%; background: var(--card); color: var(--text); border: 1px solid var(--card-borde);
+  border-radius: 12px; padding: 12px 14px; font-size: 15px; font-family: var(--font-body);
+}
+.campo-nombre input:focus { outline: none; border-color: var(--accent); }
+
 /* --- Categorías --- */
 .categorias {
   display: flex;
@@ -138,6 +179,7 @@ body {
   border: 1px solid var(--card-borde);
 }
 .qty-btn-add { background: var(--accent); color: #17131f; border-color: var(--accent); }
+.qty-btn-add:disabled { opacity: 0.35; }
 .qty-num { min-width: 20px; text-align: center; font-size: 17px; font-weight: 800; }
 
 .vacio { color: var(--text-dim); text-align: center; margin-top: 40px; }
