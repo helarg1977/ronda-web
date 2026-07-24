@@ -57,6 +57,10 @@ export default function App() {
 
   const [modalCarrito, setModalCarrito] = useState(false)
   const [modalSolicitud, setModalSolicitud] = useState(false)
+  const [modalChat, setModalChat] = useState(false)
+  const [mensajesChat, setMensajesChat] = useState([])
+  const [textoChat, setTextoChat] = useState('')
+  const [hayMensajesNuevos, setHayMensajesNuevos] = useState(false)
   const [cuentaPedidos, setCuentaPedidos] = useState([])
   const [cargandoCuenta, setCargandoCuenta] = useState(false)
 
@@ -144,6 +148,18 @@ export default function App() {
     init()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    if (!mesa) return
+    const canal = supabase
+      .channel(`chat-mesa-${mesa.id}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mensajes_chat', filter: `canal=eq.mesa-${mesa.id}` }, (payload) => {
+        setMensajesChat((m) => [...m, payload.new])
+        if (payload.new.de !== 'cliente') setHayMensajesNuevos(true)
+      })
+      .subscribe()
+    return () => supabase.removeChannel(canal)
+  }, [mesa])
 
   async function cargarMenu(barId) {
     const { data: cats } = await supabase
@@ -393,6 +409,33 @@ export default function App() {
     mostrarToast(error ? 'No se pudo enviar. Intenta otra vez.' : 'Ya avisamos al mesero 👍')
   }
 
+  async function cargarChat() {
+    if (!mesa) return
+    const { data } = await supabase.from('mensajes_chat').select('id, de, nombre, texto, created_at').eq('canal', `mesa-${mesa.id}`).order('created_at', { ascending: true })
+    setMensajesChat(data || [])
+  }
+
+  async function abrirChat() {
+    setModalChat(true)
+    setHayMensajesNuevos(false)
+    await cargarChat()
+  }
+
+  async function enviarMensajeChat() {
+    if (!textoChat.trim() || !mesa) return
+    const texto = textoChat.trim()
+    setTextoChat('')
+    const { data, error } = await supabase.from('mensajes_chat').insert({
+      bar_id: bar.id,
+      canal: `mesa-${mesa.id}`,
+      de: 'cliente',
+      nombre: nombreCliente || 'Cliente',
+      texto,
+    }).select().single()
+    if (error) { mostrarToast('No se pudo enviar el mensaje.'); return }
+    setMensajesChat((m) => [...m, data])
+  }
+
   async function refrescarHistorial() {
     if (!mesa) return
     setCargandoCuenta(true)
@@ -523,6 +566,9 @@ export default function App() {
       )}
 
       <button className="btn-flotante" onClick={() => setModalSolicitud(true)}>✋ Necesito algo</button>
+      <button className="btn-flotante btn-flotante-chat" onClick={abrirChat}>
+        💬 {hayMensajesNuevos && <span className="punto-nuevo" />}
+      </button>
 
       <h2 className="historial-titulo">Tu historial de esta noche</h2>
       {cuentaPedidos.length === 0 && <p className="vacio">Aún no has pedido nada. ¡Arranca la noche! 🍻</p>}
@@ -600,6 +646,35 @@ export default function App() {
               <button key={o.tipo} className="modal-opcion" onClick={() => enviarSolicitud(o.tipo)}>{o.label}</button>
             ))}
             <button className="btn-secundario" onClick={() => setModalSolicitud(false)}>Cancelar</button>
+          </div>
+        </div>
+      )}
+
+      {modalChat && (
+        <div className="modal-overlay" onClick={() => setModalChat(false)}>
+          <div className="modal modal-chat" onClick={(e) => e.stopPropagation()}>
+            <h3>💬 Habla con tu mesero</h3>
+            <div className="chat-mensajes">
+              {mensajesChat.length === 0 && <p className="vacio">Escríbele al mesero si necesitas algo.</p>}
+              {mensajesChat.map((m) => (
+                <div key={m.id} className={`chat-burbuja ${m.de === 'cliente' ? 'chat-propia' : 'chat-otra'}`}>
+                  <div className="chat-autor">{m.de === 'cliente' ? 'Tú' : (m.nombre || m.de)}</div>
+                  {m.texto}
+                </div>
+              ))}
+            </div>
+            <div className="chat-entrada">
+              <input
+                type="text"
+                value={textoChat}
+                onChange={(e) => setTextoChat(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') enviarMensajeChat() }}
+                placeholder="Escribe un mensaje…"
+                maxLength={200}
+              />
+              <button onClick={enviarMensajeChat}>Enviar</button>
+            </div>
+            <button className="btn-secundario" onClick={() => setModalChat(false)}>Cerrar</button>
           </div>
         </div>
       )}
