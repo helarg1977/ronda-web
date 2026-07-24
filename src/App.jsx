@@ -70,6 +70,8 @@ export default function App() {
   const [calificacion, setCalificacion] = useState(0)
   const [propinaEnviada, setPropinaEnviada] = useState(false)
   const [topProductoId, setTopProductoId] = useState(null)
+  const [historialAbierto, setHistorialAbierto] = useState(true)
+  const [fotoAmpliada, setFotoAmpliada] = useState(null)
 
   const [metodoPago, setMetodoPago] = useState('efectivo')
   const [comprobanteUrl, setComprobanteUrl] = useState(null)
@@ -473,7 +475,7 @@ export default function App() {
         <div className="header-mesa">Mesa {mesa?.numero}</div>
       </header>
 
-      <div className="total-visita">
+      <div className="total-visita" onClick={() => { setHistorialAbierto(true); document.querySelector('.historial-titulo')?.scrollIntoView({ behavior: 'smooth' }) }} style={{ cursor: 'pointer' }}>
         <span>Hoy llevas</span>
         <strong>{money(totalVisita)}</strong>
       </div>
@@ -527,7 +529,7 @@ export default function App() {
           <div key={p.id} className="producto-card">
             {p.id === topProductoId && <span className="producto-badge">🔥 Más pedido</span>}
             {p.foto_url ? (
-              <img src={p.foto_url} alt={p.nombre} className="producto-foto" />
+              <img src={p.foto_url} alt={p.nombre} className="producto-foto" onClick={() => setFotoAmpliada(p.foto_url)} />
             ) : (
               <div className="producto-icono">{categorias.find((c) => c.id === p.categoria_id)?.icono || '🍸'}</div>
             )}
@@ -570,25 +572,31 @@ export default function App() {
         💬 {hayMensajesNuevos && <span className="punto-nuevo" />}
       </button>
 
-      <h2 className="historial-titulo">Tu historial de esta noche</h2>
-      {cuentaPedidos.length === 0 && <p className="vacio">Aún no has pedido nada. ¡Arranca la noche! 🍻</p>}
-      {cuentaPedidos.length > 0 && (
-        <div className="historial-lista">
-          {cuentaPedidos.map((p, i) => (
-            <div key={p.id} className="cuenta-ronda">
-              <div className="cuenta-fila cuenta-fila-titulo">
-                <span>Ronda {i + 1} — {ESTADO_LABEL[p.estado] || p.estado}</span>
-                <span>{money(p.total)}</span>
-              </div>
-              {p.items.map((it, j) => (
-                <div key={j} className="cuenta-fila-item">
-                  <span>{it.cantidad}x {it.productos?.nombre}</span>
-                  <span>{money(it.precio_unitario * it.cantidad)}</span>
+      <h2 className="historial-titulo" onClick={() => setHistorialAbierto(!historialAbierto)} style={{ cursor: 'pointer' }}>
+        {historialAbierto ? '▾' : '▸'} Tu historial de esta noche
+      </h2>
+      {historialAbierto && (
+        <>
+          {cuentaPedidos.length === 0 && <p className="vacio">Aún no has pedido nada. ¡Arranca la noche! 🍻</p>}
+          {cuentaPedidos.length > 0 && (
+            <div className="historial-lista">
+              {cuentaPedidos.map((p, i) => (
+                <div key={p.id} className="cuenta-ronda">
+                  <div className="cuenta-fila cuenta-fila-titulo">
+                    <span>Ronda {i + 1} — {ESTADO_LABEL[p.estado] || p.estado}</span>
+                    <span>{money(p.total)}</span>
+                  </div>
+                  {p.items.map((it, j) => (
+                    <div key={j} className="cuenta-fila-item">
+                      <span>{it.cantidad}x {it.productos?.nombre}</span>
+                      <span>{money(it.precio_unitario * it.cantidad)}</span>
+                    </div>
+                  ))}
                 </div>
               ))}
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
 
       {modalCarrito && (
@@ -676,6 +684,12 @@ export default function App() {
             </div>
             <button className="btn-secundario" onClick={() => setModalChat(false)}>Cerrar</button>
           </div>
+        </div>
+      )}
+
+      {fotoAmpliada && (
+        <div className="lightbox-fondo" onClick={() => setFotoAmpliada(null)}>
+          <img src={fotoAmpliada} alt="ampliada" className="lightbox-imagen" />
         </div>
       )}
 
