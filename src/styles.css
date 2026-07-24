@@ -200,6 +200,22 @@ body {
   padding: 18px 0; font-size: 20px; font-weight: 700;
 }
 
+.pago-titulo { color: var(--text-dim); font-size: 14px; margin: 18px 0 8px; font-weight: 600; }
+.pago-metodos { display: flex; gap: 8px; flex-wrap: wrap; }
+.pago-btn {
+  flex: 1; min-width: 100px;
+  background: var(--card); color: var(--text); border: 1px solid var(--card-borde);
+  border-radius: 12px; padding: 12px; font-size: 14px; font-weight: 600;
+}
+.pago-btn.activo { background: var(--accent); color: #17131f; border-color: var(--accent); }
+.pago-detalle { background: var(--card); border: 1px solid var(--card-borde); border-radius: 14px; padding: 16px; margin-top: 12px; }
+.pago-numero { font-size: 15px; margin: 0 0 12px; }
+.pago-subir {
+  display: block; text-align: center;
+  background: var(--bg-elevado); color: var(--accent); border: 1px dashed var(--accent);
+  border-radius: 12px; padding: 14px; font-size: 14px; font-weight: 600; cursor: pointer;
+}
+
 .btn-primario {
   width: 100%;
   background: var(--accent);
