@@ -57,7 +57,6 @@ export default function App() {
 
   const [modalCarrito, setModalCarrito] = useState(false)
   const [modalSolicitud, setModalSolicitud] = useState(false)
-  const [modalCuenta, setModalCuenta] = useState(false)
   const [cuentaPedidos, setCuentaPedidos] = useState([])
   const [cargandoCuenta, setCargandoCuenta] = useState(false)
 
@@ -139,6 +138,7 @@ export default function App() {
 
       await cargarMenu(mesaData.bar_id)
       await refrescarTotalVisita(mesaData)
+      await refrescarHistorial()
       setFase('listo')
     }
     init()
@@ -192,7 +192,7 @@ export default function App() {
         yaProcesado = true
         localStorage.removeItem(storageKey(mesa.id))
         mostrarToast('Tu pedido fue cancelado.')
-        setTimeout(() => { setPedido(null); refrescarTotalVisita() }, 1500)
+        setTimeout(() => { setPedido(null); refrescarTotalVisita(); refrescarHistorial() }, 1500)
       }
     }
 
@@ -202,6 +202,7 @@ export default function App() {
         setPedido(payload.new)
         manejarCambio(payload.new.estado)
         refrescarTotalVisita()
+        refrescarHistorial()
       })
       .subscribe()
 
@@ -227,11 +228,6 @@ export default function App() {
   function agregar(productoId) {
     if (pedidoBloqueado) return
     setCarrito((c) => ({ ...c, [productoId]: (c[productoId] || 0) + 1 }))
-    const producto = productos.find((p) => p.id === productoId)
-    if (producto?.producto_sugerido_id && !carrito[producto.producto_sugerido_id]) {
-      const sugerido = productos.find((p) => p.id === producto.producto_sugerido_id)
-      if (sugerido) setUpsell(sugerido)
-    }
   }
   function quitar(productoId) {
     setCarrito((c) => {
@@ -330,6 +326,7 @@ export default function App() {
       setMetodoPago('efectivo')
       setComprobanteUrl(null)
       refrescarTotalVisita()
+      refrescarHistorial()
     } catch (e) {
       mostrarToast('No pudimos enviar tu pedido. Intenta de nuevo.')
     } finally {
@@ -365,6 +362,7 @@ export default function App() {
       setPropinaEnviada(false)
       setCarrito({})
       refrescarTotalVisita()
+      refrescarHistorial()
     } catch (e) {
       mostrarToast('No pudimos repetir el pedido.')
     } finally {
@@ -395,9 +393,9 @@ export default function App() {
     mostrarToast(error ? 'No se pudo enviar. Intenta otra vez.' : 'Ya avisamos al mesero 👍')
   }
 
-  async function abrirCuenta() {
+  async function refrescarHistorial() {
+    if (!mesa) return
     setCargandoCuenta(true)
-    setModalCuenta(true)
     const { data: pedidosData } = await supabase
       .from('pedidos').select('id, estado, total, created_at')
       .eq('mesa_id', mesa.id).eq('sesion_id', mesa.sesion_actual).neq('estado', 'cancelado')
@@ -493,6 +491,9 @@ export default function App() {
             <div className="producto-info">
               <div className="producto-nombre">{p.nombre}</div>
               <div className="producto-precio">{money(p.precio)}</div>
+              {p.producto_sugerido_id && productos.find((x) => x.id === p.producto_sugerido_id) && (
+                <div className="producto-combo">🔥 Combina perfecto con {productos.find((x) => x.id === p.producto_sugerido_id).nombre}</div>
+              )}
             </div>
             <div className="producto-cantidad">
               {carrito[p.id] > 0 && (
@@ -509,16 +510,6 @@ export default function App() {
         {pedidoBloqueado && <p className="vacio">El mesero ya está atendiendo tu pedido — cuando lo entreguen podrás pedir otra ronda.</p>}
       </main>
 
-      {upsell && (
-        <div className="upsell-banner">
-          <span>¿Agregas {upsell.nombre} por {money(upsell.precio)}?</span>
-          <div className="upsell-botones">
-            <button className="upsell-si" onClick={agregarSugerido}>Sí, agregar</button>
-            <button className="upsell-no" onClick={() => setUpsell(null)}>No, gracias</button>
-          </div>
-        </div>
-      )}
-
       {totalItems > 0 && !editando && (
         <button className="barra-carrito" onClick={abrirCarritoNuevo}>
           <span>{totalItems} producto{totalItems > 1 ? 's' : ''}</span>
@@ -531,8 +522,28 @@ export default function App() {
         </button>
       )}
 
-      <button className="btn-flotante btn-flotante-cuenta" onClick={abrirCuenta}>🧾 Mi cuenta</button>
       <button className="btn-flotante" onClick={() => setModalSolicitud(true)}>✋ Necesito algo</button>
+
+      <h2 className="historial-titulo">Tu historial de esta noche</h2>
+      {cuentaPedidos.length === 0 && <p className="vacio">Aún no has pedido nada. ¡Arranca la noche! 🍻</p>}
+      {cuentaPedidos.length > 0 && (
+        <div className="historial-lista">
+          {cuentaPedidos.map((p, i) => (
+            <div key={p.id} className="cuenta-ronda">
+              <div className="cuenta-fila cuenta-fila-titulo">
+                <span>Ronda {i + 1} — {ESTADO_LABEL[p.estado] || p.estado}</span>
+                <span>{money(p.total)}</span>
+              </div>
+              {p.items.map((it, j) => (
+                <div key={j} className="cuenta-fila-item">
+                  <span>{it.cantidad}x {it.productos?.nombre}</span>
+                  <span>{money(it.precio_unitario * it.cantidad)}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
 
       {modalCarrito && (
         <div className="modal-overlay" onClick={() => setModalCarrito(false)}>
@@ -577,38 +588,6 @@ export default function App() {
               {enviando ? 'Enviando…' : editando ? 'Actualizar pedido' : 'Enviar pedido'}
             </button>
             <button className="btn-secundario" onClick={() => { setModalCarrito(false); setEditando(false) }}>← Seguir viendo el menú</button>
-          </div>
-        </div>
-      )}
-
-      {modalCuenta && (
-        <div className="modal-overlay" onClick={() => setModalCuenta(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Mi cuenta — Mesa {mesa?.numero}</h3>
-            {cargandoCuenta && <p className="vacio">Cargando…</p>}
-            {!cargandoCuenta && cuentaPedidos.length === 0 && <p className="vacio">Todavía no has hecho ningún pedido en esta visita.</p>}
-            {!cargandoCuenta && cuentaPedidos.length > 0 && (
-              <>
-                <div className="cuenta-lista">
-                  {cuentaPedidos.map((p, i) => (
-                    <div key={p.id} className="cuenta-ronda">
-                      <div className="cuenta-fila cuenta-fila-titulo">
-                        <span>Ronda {i + 1} — {ESTADO_LABEL[p.estado] || p.estado}</span>
-                        <span>{money(p.total)}</span>
-                      </div>
-                      {p.items.map((it, j) => (
-                        <div key={j} className="cuenta-fila-item">
-                          <span>{it.cantidad}x {it.productos?.nombre}</span>
-                          <span>{money(it.precio_unitario * it.cantidad)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-                <div className="cuenta-total"><strong>Total de la mesa</strong><strong>{money(cuentaPedidos.reduce((s, p) => s + Number(p.total), 0))}</strong></div>
-              </>
-            )}
-            <button className="btn-secundario" onClick={() => setModalCuenta(false)}>Cerrar</button>
           </div>
         </div>
       )}
