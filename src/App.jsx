@@ -103,7 +103,7 @@ export default function App() {
 
       const { data: barData, error: barErr } = await supabase
         .from('bares')
-        .select('id, nombre, logo_url, activo, llave_nequi, llave_daviplata, llave_bre_b')
+        .select('id, nombre, logo_url, activo, llave_nequi, llave_daviplata, llave_bre_b, propinas_habilitadas')
         .eq('id', mesaData.bar_id)
         .eq('activo', true)
         .maybeSingle()
@@ -450,7 +450,7 @@ export default function App() {
         </div>
       )}
 
-      {pedido?.estado === 'entregado' && !propinaEnviada && (
+      {pedido?.estado === 'entregado' && !propinaEnviada && bar?.propinas_habilitadas !== false && (
         <div className="propina-box">
           <p className="propina-titulo">¿Cómo te atendieron?</p>
           <div className="estrellas">
