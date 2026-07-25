@@ -53,6 +53,11 @@ export default function App() {
   const [editando, setEditando] = useState(false)
 
   const [nombreCliente, setNombreCliente] = useState('')
+  const [telefonoCliente, setTelefonoCliente] = useState('')
+  const [visitasCliente, setVisitasCliente] = useState(0)
+  const [mostrarGuardarTel, setMostrarGuardarTel] = useState(false)
+  const [promociones, setPromociones] = useState([])
+  const [promoVista, setPromoVista] = useState(null)
   const [totalVisita, setTotalVisita] = useState(0)
 
   const [modalCarrito, setModalCarrito] = useState(false)
@@ -124,6 +129,26 @@ export default function App() {
       setMesa(mesaData)
       setBar(barData)
       setNombreCliente(localStorage.getItem(nombreKey(mesaData.id)) || '')
+
+      // --- Fidelización: reconocer al cliente si ya guardó su número antes ---
+      const telGuardado = localStorage.getItem(`ronda_tel_${barData.id}`)
+      if (telGuardado) {
+        setTelefonoCliente(telGuardado)
+        const { data: clienteExistente } = await supabase
+          .from('clientes_bar').select('id, visitas').eq('bar_id', barData.id).eq('telefono', telGuardado).maybeSingle()
+        if (clienteExistente) {
+          const nuevasVisitas = clienteExistente.visitas + 1
+          await supabase.from('clientes_bar').update({ visitas: nuevasVisitas, ultima_visita: new Date().toISOString() }).eq('id', clienteExistente.id)
+          setVisitasCliente(nuevasVisitas)
+        }
+      } else {
+        setTimeout(() => setMostrarGuardarTel(true), 4000)
+      }
+
+      // --- Promociones activas del bar ---
+      const { data: promosData } = await supabase.from('promociones').select('id, titulo, mensaje').eq('bar_id', barData.id).eq('activa', true).order('created_at', { ascending: false })
+      setPromociones(promosData || [])
+      if (promosData && promosData.length > 0) setPromoVista(promosData[0])
 
       const ultimoGuardado = localStorage.getItem(ultimoPedidoKey(mesaData.id))
       if (ultimoGuardado) {
@@ -200,6 +225,22 @@ export default function App() {
   function guardarNombre(valor) {
     setNombreCliente(valor)
     if (mesa) localStorage.setItem(nombreKey(mesa.id), valor)
+  }
+
+  async function guardarTelefonoCliente() {
+    const tel = telefonoCliente.trim()
+    if (!tel || !bar) return
+    localStorage.setItem(`ronda_tel_${bar.id}`, tel)
+    const { data: existente } = await supabase.from('clientes_bar').select('id, visitas').eq('bar_id', bar.id).eq('telefono', tel).maybeSingle()
+    if (existente) {
+      await supabase.from('clientes_bar').update({ visitas: existente.visitas + 1, ultima_visita: new Date().toISOString() }).eq('id', existente.id)
+      setVisitasCliente(existente.visitas + 1)
+    } else {
+      await supabase.from('clientes_bar').insert({ bar_id: bar.id, telefono: tel, nombre: nombreCliente || null, visitas: 1 })
+      setVisitasCliente(1)
+    }
+    setMostrarGuardarTel(false)
+    mostrarToast('¡Listo! La próxima vez te reconocemos 🙌')
   }
 
   // --- Suscripción en tiempo real + respaldo por polling al pedido activo ---
@@ -477,6 +518,20 @@ export default function App() {
         <div className="header-mesa">Mesa {mesa?.numero}</div>
       </header>
 
+      {visitasCliente > 1 && (
+        <div className="banner-fidelidad">🎉 ¡Bienvenido de nuevo! Ya has venido {visitasCliente} veces.</div>
+      )}
+
+      {promoVista && (
+        <div className="banner-promo" onClick={() => setPromoVista(null)}>
+          <div>
+            <div className="banner-promo-titulo">📣 {promoVista.titulo}</div>
+            <div className="banner-promo-texto">{promoVista.mensaje}</div>
+          </div>
+          <span className="banner-promo-cerrar">✕</span>
+        </div>
+      )}
+
       <div className="total-visita" onClick={() => { setHistorialAbierto(true); document.querySelector('.historial-titulo')?.scrollIntoView({ behavior: 'smooth' }) }} style={{ cursor: 'pointer' }}>
         <span>Hoy llevas</span>
         <strong>{money(totalVisita)}</strong>
@@ -666,6 +721,24 @@ export default function App() {
               {enviando ? 'Enviando…' : editando ? 'Actualizar pedido' : 'Enviar pedido'}
             </button>
             <button className="btn-secundario" onClick={() => { setModalCarrito(false); setEditando(false) }}>← Seguir viendo el menú</button>
+          </div>
+        </div>
+      )}
+
+      {mostrarGuardarTel && (
+        <div className="modal-overlay" onClick={() => setMostrarGuardarTel(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>💌 ¿Te reconocemos la próxima vez?</h3>
+            <p className="ayuda-fidelidad">Guarda tu número y la próxima vez que vengas a {bar?.nombre}, te damos la bienvenida de nuevo. Es opcional.</p>
+            <input
+              type="tel"
+              className="input-telefono"
+              value={telefonoCliente}
+              onChange={(e) => setTelefonoCliente(e.target.value)}
+              placeholder="Tu número de celular"
+            />
+            <button className="btn-primario" onClick={guardarTelefonoCliente}>Guardar</button>
+            <button className="btn-secundario" onClick={() => setMostrarGuardarTel(false)}>Ahora no</button>
           </div>
         </div>
       )}
