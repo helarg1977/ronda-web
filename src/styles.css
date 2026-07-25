@@ -32,7 +32,7 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  padding-bottom: 96px;
+  padding-bottom: 220px;
   background:
     radial-gradient(ellipse 600px 240px at 50% -60px, var(--neon-soft), transparent 70%),
     radial-gradient(ellipse 500px 300px at 100% 0%, var(--accent-soft), transparent 60%),
@@ -155,9 +155,9 @@ body {
   color: var(--text);
   border: 1px solid var(--card-borde);
   border-radius: 999px;
-  padding: 12px 20px;
-  font-size: 16px;
-  font-weight: 600;
+  padding: 16px 24px;
+  font-size: 18px;
+  font-weight: 700;
   white-space: nowrap;
   transition: box-shadow 0.2s ease;
 }
@@ -200,7 +200,7 @@ body {
 }
 .producto-info { flex: 1; min-width: 0; }
 .producto-nombre { font-size: 17px; font-weight: 700; }
-.producto-precio { color: var(--accent); font-size: 15px; margin-top: 3px; font-weight: 700; }
+.producto-precio { color: var(--text-dim); font-size: 15px; margin-top: 3px; font-weight: 700; }
 .producto-combo { color: var(--neon); font-size: 12px; margin-top: 4px; font-weight: 600; }
 .producto-badge {
   position: absolute; top: -8px; left: 12px;
@@ -212,17 +212,17 @@ body {
 
 .producto-cantidad { display: flex; align-items: center; gap: 10px; }
 .qty-btn {
-  width: 42px; height: 42px;
+  width: 46px; height: 46px;
   border-radius: 50%;
   border: none;
   background: var(--bg-elevado);
   color: var(--text);
-  font-size: 22px;
+  font-size: 24px;
   display: flex; align-items: center; justify-content: center;
   border: 1px solid var(--card-borde);
 }
-.qty-btn-add { background: var(--accent); color: #17131f; border-color: var(--accent); }
-.qty-btn-add:disabled { opacity: 0.35; }
+.qty-btn-add { background: var(--accent); color: #17131f; border-color: var(--accent); box-shadow: 0 0 14px 1px rgba(217, 142, 63, 0.5); }
+.qty-btn-add:disabled { opacity: 0.35; box-shadow: none; }
 .qty-num { min-width: 20px; text-align: center; font-size: 17px; font-weight: 800; }
 
 .vacio { color: var(--text-dim); text-align: center; margin-top: 40px; }
@@ -364,6 +364,7 @@ body {
   box-shadow: 0 4px 16px rgba(0,0,0,0.45);
 }
 .btn-flotante-cuenta { bottom: 158px; }
+.btn-flotante-chat { bottom: 166px; }
 
 /* --- Cuenta --- */
 .historial-titulo {
