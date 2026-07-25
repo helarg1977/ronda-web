@@ -61,7 +61,6 @@ export default function App() {
   const [totalVisita, setTotalVisita] = useState(0)
 
   const [modalCarrito, setModalCarrito] = useState(false)
-  const [modalSolicitud, setModalSolicitud] = useState(false)
   const [modalChat, setModalChat] = useState(false)
   const [mensajesChat, setMensajesChat] = useState([])
   const [textoChat, setTextoChat] = useState('')
@@ -569,33 +568,33 @@ export default function App() {
         </div>
       )}
 
-      <div className="campo-nombre">
-        <label>¿Quién de la mesa está pidiendo?</label>
-        <input type="text" value={nombreCliente} onChange={(e) => guardarNombre(e.target.value)} placeholder="Ej: Santiago" maxLength={30} />
+      <div className="categorias-wrap">
+        <nav className="categorias">
+          {categorias.map((c) => (
+            <button key={c.id} className={`cat-btn ${categoriaActiva === c.id ? 'activa' : ''}`} onClick={() => setCategoriaActiva(c.id)}>
+              {c.icono ? `${c.icono} ` : ''}{c.nombre}
+            </button>
+          ))}
+        </nav>
+        {categorias.length > 3 && <div className="fade-derecha" />}
       </div>
-
-      <nav className="categorias">
-        {categorias.map((c) => (
-          <button key={c.id} className={`cat-btn ${categoriaActiva === c.id ? 'activa' : ''}`} onClick={() => setCategoriaActiva(c.id)}>
-            {c.icono ? `${c.icono} ` : ''}{c.nombre}
-          </button>
-        ))}
-      </nav>
 
       <main className="productos">
         {productosVisibles.map((p) => (
-          <div key={p.id} className="producto-card">
-            {p.id === topProductoId && <span className="producto-badge">🔥 La favorita esta noche</span>}
+          <div key={p.id} className={`producto-card ${carrito[p.id] > 0 ? 'en-carrito' : ''}`}>
             {p.foto_url ? (
               <img src={p.foto_url} alt={p.nombre} className="producto-foto" onClick={() => setFotoAmpliada(p.foto_url)} />
             ) : (
               <div className="producto-icono">{categorias.find((c) => c.id === p.categoria_id)?.icono || '🍸'}</div>
             )}
             <div className="producto-info">
-              <div className="producto-nombre">{p.nombre}</div>
+              <div className="producto-nombre-linea">
+                <span className="producto-nombre">{p.nombre}</span>
+                {p.id === topProductoId && <span className="producto-badge">🔥 Popular</span>}
+              </div>
               <div className="producto-precio">{money(p.precio)}</div>
               {p.producto_sugerido_id && productos.find((x) => x.id === p.producto_sugerido_id) && (
-                <div className="producto-combo">🔥 Combina perfecto con {productos.find((x) => x.id === p.producto_sugerido_id).nombre}</div>
+                <div className="producto-combo">+ combina con {productos.find((x) => x.id === p.producto_sugerido_id).nombre}</div>
               )}
             </div>
             <div className="producto-cantidad">
@@ -613,19 +612,18 @@ export default function App() {
       </main>
 
       {totalItems > 0 && !editando && (
-        <button className="barra-carrito" onClick={abrirCarritoNuevo}>
+        <button className="cta-flotante" onClick={abrirCarritoNuevo}>
           <span>{totalItems} producto{totalItems > 1 ? 's' : ''}</span>
           <span>Revisar y enviar → {money(totalCarrito)}</span>
         </button>
       )}
       {totalItems === 0 && !pedido && ultimoPedido && (
-        <button className="barra-repetir" onClick={repetirPedido} disabled={enviando}>
-          {enviando ? 'Enviando…' : '🔁 Otra ronda (repetir el mismo pedido)'}
+        <button className="cta-flotante" onClick={repetirPedido} disabled={enviando}>
+          <span>{enviando ? 'Enviando…' : '🔁 Otra ronda'}</span>
         </button>
       )}
 
-      <button className="btn-flotante" onClick={() => setModalSolicitud(true)}>✋ Necesito algo</button>
-      <button className="btn-flotante btn-flotante-chat" onClick={abrirChat}>
+      <button className="btn-contacto" onClick={abrirChat}>
         💬 {hayMensajesNuevos && <span className="punto-nuevo" />}
       </button>
 
@@ -682,6 +680,14 @@ export default function App() {
         <div className="modal-overlay" onClick={() => setModalCarrito(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h3>{editando ? 'Editar tu pedido' : 'Tu pedido'}</h3>
+
+            {!nombreCliente && (
+              <div className="campo-nombre">
+                <label>¿Quién de la mesa está pidiendo?</label>
+                <input type="text" value={nombreCliente} onChange={(e) => guardarNombre(e.target.value)} placeholder="Ej: Santiago" maxLength={30} />
+              </div>
+            )}
+
             <div className="cuenta-lista">
               {Object.entries(carrito).map(([id, cant]) => {
                 const p = productos.find((x) => x.id === id)
@@ -743,24 +749,17 @@ export default function App() {
         </div>
       )}
 
-      {modalSolicitud && (
-        <div className="modal-overlay" onClick={() => setModalSolicitud(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>¿Qué necesitas?</h3>
-            {SOLICITUD_OPCIONES.map((o) => (
-              <button key={o.tipo} className="modal-opcion" onClick={() => enviarSolicitud(o.tipo)}>{o.label}</button>
-            ))}
-            <button className="btn-secundario" onClick={() => setModalSolicitud(false)}>Cancelar</button>
-          </div>
-        </div>
-      )}
-
       {modalChat && (
         <div className="modal-overlay" onClick={() => setModalChat(false)}>
           <div className="modal modal-chat" onClick={(e) => e.stopPropagation()}>
-            <h3>💬 Habla con tu mesero</h3>
+            <h3>✋💬 Habla con tu mesero</h3>
+            <div className="contacto-rapido">
+              {SOLICITUD_OPCIONES.map((o) => (
+                <button key={o.tipo} onClick={() => enviarSolicitud(o.tipo)}>{o.label}</button>
+              ))}
+            </div>
             <div className="chat-mensajes">
-              {mensajesChat.length === 0 && <p className="vacio">Escríbele al mesero si necesitas algo.</p>}
+              {mensajesChat.length === 0 && <p className="vacio">O escríbele directamente aquí abajo.</p>}
               {mensajesChat.map((m) => (
                 <div key={m.id} className={`chat-burbuja ${m.de === 'cliente' ? 'chat-propia' : 'chat-otra'}`}>
                   <div className="chat-autor">{m.de === 'cliente' ? 'Tú' : (m.nombre || m.de)}</div>
