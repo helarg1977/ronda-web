@@ -72,6 +72,8 @@ export default function App() {
   const [topProductoId, setTopProductoId] = useState(null)
   const [historialAbierto, setHistorialAbierto] = useState(true)
   const [fotoAmpliada, setFotoAmpliada] = useState(null)
+  const [modalDividir, setModalDividir] = useState(false)
+  const [personasDividir, setPersonasDividir] = useState(2)
 
   const [metodoPago, setMetodoPago] = useState('efectivo')
   const [comprobanteUrl, setComprobanteUrl] = useState(null)
@@ -486,6 +488,7 @@ export default function App() {
           <div className="banner-texto">
             <div className="banner-titulo">{ESTADO_LABEL[pedido.estado] || pedido.estado}</div>
             <div className="banner-total">{money(pedido.total)}</div>
+            {pedidoBloqueado && <div className="banner-nota">El mesero ya lo está atendiendo — cuando lo entreguen podrás pedir otra ronda.</div>}
           </div>
           {pedido.estado === 'pendiente' && (
             <button className="banner-editar" onClick={abrirEdicionPedido}>✏️ Editar</button>
@@ -552,7 +555,6 @@ export default function App() {
           </div>
         ))}
         {productosVisibles.length === 0 && <p className="vacio">No hay productos en esta categoría.</p>}
-        {pedidoBloqueado && <p className="vacio">El mesero ya está atendiendo tu pedido — cuando lo entreguen podrás pedir otra ronda.</p>}
       </main>
 
       {totalItems > 0 && !editando && (
@@ -594,9 +596,31 @@ export default function App() {
                   ))}
                 </div>
               ))}
+              <button className="btn-dividir" onClick={() => setModalDividir(true)}>➗ Dividir esta cuenta</button>
             </div>
           )}
         </>
+      )}
+
+      {modalDividir && (
+        <div className="modal-overlay" onClick={() => setModalDividir(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>➗ Dividir la cuenta</h3>
+            <p className="pago-titulo">Total de la mesa: {money(cuentaPedidos.reduce((s, p) => s + Number(p.total), 0))}</p>
+            <p className="pago-titulo">¿Entre cuántas personas?</p>
+            <div className="pago-metodos">
+              {[2, 3, 4, 5, 6].map((n) => (
+                <button key={n} className={`pago-btn ${personasDividir === n ? 'activo' : ''}`} onClick={() => setPersonasDividir(n)}>{n}</button>
+              ))}
+            </div>
+            {personasDividir > 0 && (
+              <div className="pago-detalle">
+                <p className="pago-numero">Cada uno paga: <strong>{money(cuentaPedidos.reduce((s, p) => s + Number(p.total), 0) / personasDividir)}</strong></p>
+              </div>
+            )}
+            <button className="btn-secundario" onClick={() => setModalDividir(false)}>Cerrar</button>
+          </div>
+        </div>
       )}
 
       {modalCarrito && (
