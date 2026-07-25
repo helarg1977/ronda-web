@@ -94,6 +94,7 @@ body {
 .banner-texto { flex: 1; }
 .banner-titulo { font-size: 15px; font-weight: 700; }
 .banner-total { color: var(--accent); font-size: 14px; margin-top: 2px; font-weight: 700; }
+.banner-nota { color: var(--text-dim); font-size: 12px; margin-top: 6px; line-height: 16px; }
 .banner-editar {
   background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent);
   border-radius: 10px; padding: 8px 12px; font-size: 13px; font-weight: 700; white-space: nowrap;
@@ -338,6 +339,10 @@ body {
   letter-spacing: 0.4px; margin: 30px 16px 12px;
 }
 .historial-lista { padding: 0 16px 20px; }
+.btn-dividir {
+  width: 100%; margin-top: 14px; background: transparent; color: var(--accent);
+  border: 1px dashed var(--accent); border-radius: 12px; padding: 12px; font-size: 14px; font-weight: 700;
+}
 .cuenta-lista { max-height: 300px; overflow-y: auto; }
 .cuenta-ronda { border-bottom: 1px solid var(--card-borde); padding-bottom: 8px; margin-bottom: 8px; }
 .cuenta-fila-titulo { font-weight: 700; font-size: 14px; padding: 10px 0 4px; }
