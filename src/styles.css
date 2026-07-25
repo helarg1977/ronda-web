@@ -13,6 +13,7 @@
   --text-dim: #b6acc0;
   --danger: #e05c5c;
   --exito: #3ecf8e;
+  --alto-zona-flotante: 0px;
   --font-display: 'Bebas Neue', 'Manrope', sans-serif;
   --font-body: 'Manrope', -apple-system, sans-serif;
 }
@@ -37,7 +38,8 @@ body {
   min-height: 100svh;
   display: flex;
   flex-direction: column;
-  padding-bottom: 170px;
+  padding-bottom: calc(var(--alto-zona-flotante) + 16px);
+  transition: padding-bottom 0.15s ease;
   padding-top: env(safe-area-inset-top, 0);
   padding-left: env(safe-area-inset-left, 0);
   padding-right: env(safe-area-inset-right, 0);
@@ -268,10 +270,33 @@ body {
 }
 
 /* --- Barras inferiores fijas --- */
+/* ============================================================
+   SISTEMA DE ZONA FLOTANTE — capa única, nunca posiciones sueltas.
+   Todo flotante nuevo entra a #capaFlotante, nunca con su propio
+   position:fixed + bottom a mano. El espacio se reserva solo vía
+   --alto-zona-flotante (actualizada por ResizeObserver en App.jsx).
+   ============================================================ */
+#capaFlotante {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  padding: 0 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  pointer-events: none;
+}
+#capaFlotante > * { pointer-events: auto; max-width: 460px; width: 100%; }
+.fila-secundarios { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; width: 100%; }
+
+.btn-flotante-secundario {
+  width: 50px; height: 50px; border-radius: 50%; flex-shrink: 0;
+  background: var(--bg-elevado); color: var(--accent); border: 1px solid var(--card-borde);
+  font-size: 20px; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.4); position: relative;
+}
+.punto-nuevo {
+  position: absolute; top: 4px; right: 4px;
+  width: 10px; height: 10px; border-radius: 50%; background: var(--neon);
+}
+
 .cta-flotante {
-  position: fixed;
-  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
-  left: 16px; right: 16px; max-width: 460px; margin: 0 auto;
   background: linear-gradient(135deg, var(--accent), #c97a2e);
   color: #17131f;
   font-family: var(--font-display);
@@ -285,7 +310,6 @@ body {
   font-size: clamp(15px, 4.2vw, 17px);
   letter-spacing: 0.3px;
   box-shadow: 0 10px 26px rgba(217, 142, 63, 0.4);
-  z-index: 25;
 }
 .cta-flotante:disabled { opacity: 0.6; }
 
@@ -365,24 +389,6 @@ body {
   border-radius: 12px; padding: 14px; font-size: 15px; font-weight: 800;
 }
 .propina-gracias { text-align: center; color: var(--accent); font-size: 16px; margin-top: 20px; font-weight: 700; }
-
-/* --- Botones flotantes --- */
-.btn-contacto {
-  position: fixed;
-  bottom: calc(84px + env(safe-area-inset-bottom, 0px)); right: 16px;
-  width: 50px; height: 50px;
-  background: var(--bg-elevado);
-  color: var(--accent);
-  border: 1px solid var(--card-borde);
-  border-radius: 50%;
-  font-size: 20px;
-  display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 6px 16px rgba(0,0,0,0.4);
-}
-.punto-nuevo {
-  position: absolute; top: 4px; right: 4px;
-  width: 10px; height: 10px; border-radius: 50%; background: var(--neon);
-}
 
 /* --- Cuenta --- */
 .historial-titulo {
