@@ -2,6 +2,8 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react'
 import { supabase } from './supabaseClient'
 
 const ESTADOS = ['pendiente', 'confirmado', 'preparando', 'en_camino', 'entregado']
+const MINUTOS_RONDA_INTELIGENTE = 30 // a los cuantos minutos sin pedir se pregunta sola "¿otra ronda?"
+const MINUTOS_SNOOZE_RONDA = 15 // si dice "más tarde", cuánto espera antes de volver a preguntar
 const METODOS_PAGO = [
   { id: 'efectivo', label: '💵 Efectivo' },
   { id: 'nequi', label: '📱 Nequi', llaveField: 'llave_nequi' },
@@ -77,6 +79,8 @@ export default function App() {
   const [historialAbierto, setHistorialAbierto] = useState(true)
   const [fotoAmpliada, setFotoAmpliada] = useState(null)
   const [modalDividir, setModalDividir] = useState(false)
+  const [mostrarPromptRonda, setMostrarPromptRonda] = useState(false)
+  const [snoozeRondaHasta, setSnoozeRondaHasta] = useState(0)
   const [personasDividir, setPersonasDividir] = useState(2)
 
   const [metodoPago, setMetodoPago] = useState('efectivo')
@@ -101,6 +105,33 @@ export default function App() {
     actualizar()
     return () => observer.disconnect()
   }, [])
+
+  // --- Segunda ronda inteligente: pregunta sola si ya pasó rato sin pedir ---
+  useEffect(() => {
+    if (!mesa) return
+    function revisar() {
+      if (pedido || !ultimoPedido) return // ya hay pedido activo, o nunca ha pedido nada — no aplica
+      const ultimaEntrega = Number(localStorage.getItem(`ronda_ultima_entrega_${mesa.id}`) || 0)
+      if (!ultimaEntrega) return
+      const ahora = Date.now()
+      if (ahora < snoozeRondaHasta) return
+      const minutosPasados = (ahora - ultimaEntrega) / 60000
+      if (minutosPasados >= MINUTOS_RONDA_INTELIGENTE) setMostrarPromptRonda(true)
+    }
+    revisar()
+    const intervalo = setInterval(revisar, 60000)
+    return () => clearInterval(intervalo)
+  }, [mesa, pedido, ultimoPedido, snoozeRondaHasta])
+
+  function posponerRondaInteligente() {
+    setMostrarPromptRonda(false)
+    setSnoozeRondaHasta(Date.now() + MINUTOS_SNOOZE_RONDA * 60000)
+  }
+
+  async function aceptarRondaInteligente() {
+    setMostrarPromptRonda(false)
+    await repetirPedido()
+  }
 
   // --- Carga inicial: resolver mesa desde el QR ---
   useEffect(() => {
@@ -128,7 +159,7 @@ export default function App() {
 
       const { data: barData, error: barErr } = await supabase
         .from('bares')
-        .select('id, nombre, logo_url, activo, llave_nequi, llave_daviplata, llave_bre_b, propinas_habilitadas')
+        .select('id, nombre, logo_url, activo, llave_nequi, llave_daviplata, llave_bre_b, propinas_habilitadas, hora_pico_activa')
         .eq('id', mesaData.bar_id)
         .eq('activo', true)
         .maybeSingle()
@@ -450,7 +481,11 @@ export default function App() {
     await supabase.from('propinas').insert({ pedido_id: pedido.id, mesero_id: pedido.mesero_id || null, monto, calificacion: calificacion || null })
     mostrarToast(`¡Gracias! Propina de ${money(monto)} registrada 🙌`)
     setPropinaEnviada(true)
-    setTimeout(() => { localStorage.removeItem(storageKey(mesa.id)); setPedido(null) }, 1800)
+    setTimeout(() => {
+      localStorage.removeItem(storageKey(mesa.id))
+      localStorage.setItem(`ronda_ultima_entrega_${mesa.id}`, String(Date.now()))
+      setPedido(null)
+    }, 1800)
   }
 
   async function terminarSinPropina() {
@@ -458,6 +493,7 @@ export default function App() {
       await supabase.from('propinas').insert({ pedido_id: pedido.id, mesero_id: pedido.mesero_id || null, monto: 0, calificacion })
     }
     localStorage.removeItem(storageKey(mesa.id))
+    localStorage.setItem(`ronda_ultima_entrega_${mesa.id}`, String(Date.now()))
     setPedido(null)
   }
 
@@ -533,6 +569,10 @@ export default function App() {
 
       {visitasCliente > 1 && (
         <div className="banner-fidelidad">🎉 ¡Bienvenido de nuevo! Ya has venido {visitasCliente} veces.</div>
+      )}
+
+      {bar?.hora_pico_activa && (
+        <div className="banner-hora-pico">🔥 Esta noche está a tope — gracias por tu paciencia, puede tardar un poco más de lo normal.</div>
       )}
 
       {promoVista && (
@@ -670,6 +710,17 @@ export default function App() {
             </div>
           )}
         </>
+      )}
+
+      {mostrarPromptRonda && (
+        <div className="modal-overlay" onClick={posponerRondaInteligente}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>🍺 ¿Les traemos otra ronda?</h3>
+            <p className="pago-titulo">Lo mismo de la última vez, directo a tu mesa.</p>
+            <button className="btn-primario" onClick={aceptarRondaInteligente}>Sí, traigan otra</button>
+            <button className="btn-secundario" onClick={posponerRondaInteligente}>Más tarde</button>
+          </div>
+        </div>
       )}
 
       {modalDividir && (
