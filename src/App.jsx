@@ -88,6 +88,20 @@ export default function App() {
     setTimeout(() => setToast(''), 2500)
   }, [])
 
+  // --- Sistema de zona flotante: mide #capaFlotante y reserva el espacio automáticamente ---
+  useEffect(() => {
+    const capa = document.getElementById('capaFlotante')
+    if (!capa) return
+    const raiz = document.documentElement
+    function actualizar() {
+      raiz.style.setProperty('--alto-zona-flotante', capa.getBoundingClientRect().height + 'px')
+    }
+    const observer = new ResizeObserver(actualizar)
+    observer.observe(capa)
+    actualizar()
+    return () => observer.disconnect()
+  }, [])
+
   // --- Carga inicial: resolver mesa desde el QR ---
   useEffect(() => {
     async function init() {
@@ -611,21 +625,24 @@ export default function App() {
         {productosVisibles.length === 0 && <p className="vacio">No hay productos en esta categoría.</p>}
       </main>
 
-      {totalItems > 0 && !editando && (
-        <button className="cta-flotante" onClick={abrirCarritoNuevo}>
-          <span>{totalItems} producto{totalItems > 1 ? 's' : ''}</span>
-          <span>Revisar y enviar → {money(totalCarrito)}</span>
-        </button>
-      )}
-      {totalItems === 0 && !pedido && ultimoPedido && (
-        <button className="cta-flotante" onClick={repetirPedido} disabled={enviando}>
-          <span>{enviando ? 'Enviando…' : '🔁 Otra ronda'}</span>
-        </button>
-      )}
-
-      <button className="btn-contacto" onClick={abrirChat}>
-        💬 {hayMensajesNuevos && <span className="punto-nuevo" />}
-      </button>
+      <div id="capaFlotante">
+        <div className="fila-secundarios">
+          <button className="btn-flotante-secundario" onClick={abrirChat}>
+            💬 {hayMensajesNuevos && <span className="punto-nuevo" />}
+          </button>
+        </div>
+        {totalItems > 0 && !editando && (
+          <button className="cta-flotante" onClick={abrirCarritoNuevo}>
+            <span>{totalItems} producto{totalItems > 1 ? 's' : ''}</span>
+            <span>Revisar y enviar → {money(totalCarrito)}</span>
+          </button>
+        )}
+        {totalItems === 0 && !pedido && ultimoPedido && (
+          <button className="cta-flotante" onClick={repetirPedido} disabled={enviando}>
+            <span>{enviando ? 'Enviando…' : '🔁 Otra ronda'}</span>
+          </button>
+        )}
+      </div>
 
       <h2 className="historial-titulo" onClick={() => setHistorialAbierto(!historialAbierto)} style={{ cursor: 'pointer' }}>
         {historialAbierto ? '▾' : '▸'} Tu historial de esta noche
