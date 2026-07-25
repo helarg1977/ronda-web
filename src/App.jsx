@@ -585,7 +585,7 @@ export default function App() {
       <main className="productos">
         {productosVisibles.map((p) => (
           <div key={p.id} className="producto-card">
-            {p.id === topProductoId && <span className="producto-badge">🔥 Más pedido</span>}
+            {p.id === topProductoId && <span className="producto-badge">🔥 La favorita esta noche</span>}
             {p.foto_url ? (
               <img src={p.foto_url} alt={p.nombre} className="producto-foto" onClick={() => setFotoAmpliada(p.foto_url)} />
             ) : (
@@ -640,7 +640,7 @@ export default function App() {
               {cuentaPedidos.map((p, i) => (
                 <div key={p.id} className="cuenta-ronda">
                   <div className="cuenta-fila cuenta-fila-titulo">
-                    <span>Ronda {i + 1} — {ESTADO_LABEL[p.estado] || p.estado}</span>
+                    <span>{new Date(p.created_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })} — {p.estado === 'entregado' ? '✔ Entregado' : (ESTADO_LABEL[p.estado] || p.estado)}</span>
                     <span>{money(p.total)}</span>
                   </div>
                   {p.items.map((it, j) => (
