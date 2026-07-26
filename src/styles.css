@@ -149,8 +149,13 @@ body {
 .banner-titulo { font-size: 15px; font-weight: 700; }
 .banner-total { color: var(--accent); font-size: 14px; margin-top: 2px; font-weight: 700; }
 .banner-nota { color: var(--text-dim); font-size: 12px; margin-top: 6px; line-height: 16px; }
+.banner-botones { display: flex; flex-direction: column; gap: 6px; }
 .banner-editar {
   background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent);
+  border-radius: 10px; padding: 8px 12px; font-size: 13px; font-weight: 700; white-space: nowrap;
+}
+.banner-cancelar {
+  background: transparent; color: var(--danger); border: 1px solid var(--danger);
   border-radius: 10px; padding: 8px 12px; font-size: 13px; font-weight: 700; white-space: nowrap;
 }
 .banner-entregado { border-color: var(--exito); }
