@@ -360,6 +360,18 @@ export default function App() {
     setModalCarrito(true)
   }
 
+  async function cancelarPedido() {
+    if (!pedido || pedido.estado !== 'pendiente') return
+    if (!window.confirm('¿Cancelar este pedido? No se puede deshacer.')) return
+    await supabase.from('pedidos').update({ estado: 'cancelado' }).eq('id', pedido.id)
+    localStorage.removeItem(storageKey(mesa.id))
+    setPedido(null)
+    setCarrito({})
+    mostrarToast('Pedido cancelado')
+    refrescarTotalVisita()
+    refrescarHistorial()
+  }
+
   function abrirCarritoNuevo() {
     setEditando(false)
     setModalCarrito(true)
@@ -599,7 +611,10 @@ export default function App() {
             {pedidoBloqueado && <div className="banner-nota">El mesero ya lo está atendiendo — cuando lo entreguen podrás pedir otra ronda.</div>}
           </div>
           {pedido.estado === 'pendiente' && (
-            <button className="banner-editar" onClick={abrirEdicionPedido}>✏️ Editar</button>
+            <div className="banner-botones">
+              <button className="banner-editar" onClick={abrirEdicionPedido}>✏️ Editar</button>
+              <button className="banner-cancelar" onClick={cancelarPedido}>✖ Cancelar</button>
+            </div>
           )}
         </div>
       )}
