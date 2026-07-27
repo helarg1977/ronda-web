@@ -79,6 +79,11 @@ export default function App() {
   const [historialAbierto, setHistorialAbierto] = useState(true)
   const [fotoAmpliada, setFotoAmpliada] = useState(null)
   const [modalDividir, setModalDividir] = useState(false)
+  const [modalPagarCuenta, setModalPagarCuenta] = useState(false)
+  const [metodoPagoCuenta, setMetodoPagoCuenta] = useState('efectivo')
+  const [comprobanteCuentaUrl, setComprobanteCuentaUrl] = useState('')
+  const [subiendoComprobanteCuenta, setSubiendoComprobanteCuenta] = useState(false)
+  const [pagandoCuenta, setPagandoCuenta] = useState(false)
   const [mostrarPromptRonda, setMostrarPromptRonda] = useState(false)
   const [snoozeRondaHasta, setSnoozeRondaHasta] = useState(0)
   const [personasDividir, setPersonasDividir] = useState(2)
@@ -146,7 +151,7 @@ export default function App() {
 
       const { data: mesaData, error: mesaErr } = await supabase
         .from('mesas')
-        .select('id, numero, bar_id, activa, sesion_actual')
+        .select('id, numero, bar_id, activa, sesion_actual, cuenta_abierta')
         .eq('qr_code', qr)
         .eq('activa', true)
         .maybeSingle()
@@ -377,6 +382,44 @@ export default function App() {
     setModalCarrito(true)
   }
 
+  async function subirComprobanteCuenta(file) {
+    if (!file) return
+    setSubiendoComprobanteCuenta(true)
+    try {
+      const nombreArchivo = `${mesa.id}_cuenta_${Date.now()}_${file.name}`
+      const { error } = await supabase.storage.from('comprobantes').upload(nombreArchivo, file)
+      if (error) throw error
+      const { data } = supabase.storage.from('comprobantes').getPublicUrl(nombreArchivo)
+      setComprobanteCuentaUrl(data.publicUrl)
+      mostrarToast('Comprobante subido ✅')
+    } catch (e) {
+      mostrarToast('No se pudo subir el comprobante. Intenta de nuevo.')
+    } finally {
+      setSubiendoComprobanteCuenta(false)
+    }
+  }
+
+  async function pagarCuentaCompleta() {
+    const totalCuenta = cuentaPedidos.reduce((s, p) => s + Number(p.total), 0)
+    if (totalCuenta <= 0 || !cuentaPedidos.length) return
+    setPagandoCuenta(true)
+    try {
+      const ultimoPedidoId = cuentaPedidos[cuentaPedidos.length - 1].id
+      await supabase.from('pagos').insert({
+        pedido_id: ultimoPedidoId, metodo: metodoPagoCuenta, monto: totalCuenta,
+        comprobante_url: comprobanteCuentaUrl || null, confirmado: false,
+      })
+      await supabase.from('solicitudes').insert({ bar_id: bar.id, mesa_id: mesa.id, tipo: 'cuenta' })
+      mostrarToast('¡Listo! Ya avisamos que quieres pagar y cerrar la cuenta 🙌')
+      setModalPagarCuenta(false)
+      setComprobanteCuentaUrl('')
+    } catch (e) {
+      mostrarToast('No se pudo registrar el pago. Intenta de nuevo.')
+    } finally {
+      setPagandoCuenta(false)
+    }
+  }
+
   async function subirComprobante(file) {
     if (!file) return
     setSubiendoComprobante(true)
@@ -412,7 +455,9 @@ export default function App() {
         })
         await supabase.from('pedido_items').insert(items)
         await supabase.from('pedidos').update({ total, cliente_nombre: nombreCliente || null }).eq('id', pedido.id)
-        await supabase.from('pagos').update({ metodo: metodoPago, monto: total, comprobante_url: comprobanteUrl || null }).eq('pedido_id', pedido.id)
+        if (!mesa.cuenta_abierta) {
+          await supabase.from('pagos').update({ metodo: metodoPago, monto: total, comprobante_url: comprobanteUrl || null }).eq('pedido_id', pedido.id)
+        }
         setPedido({ ...pedido, total })
         mostrarToast('Pedido actualizado ✏️')
       } else {
@@ -427,7 +472,9 @@ export default function App() {
           return { pedido_id: nuevoPedido.id, producto_id: id, cantidad: cant, precio_unitario: p.precio }
         })
         await supabase.from('pedido_items').insert(items)
-        await supabase.from('pagos').insert({ pedido_id: nuevoPedido.id, metodo: metodoPago, monto: total, comprobante_url: comprobanteUrl || null, confirmado: false })
+        if (!mesa.cuenta_abierta) {
+          await supabase.from('pagos').insert({ pedido_id: nuevoPedido.id, metodo: metodoPago, monto: total, comprobante_url: comprobanteUrl || null, confirmado: false })
+        }
 
         localStorage.setItem(storageKey(mesa.id), nuevoPedido.id)
         localStorage.setItem(ultimoPedidoKey(mesa.id), JSON.stringify(Object.fromEntries(entries)))
@@ -722,6 +769,11 @@ export default function App() {
                 </div>
               ))}
               <button className="btn-dividir" onClick={() => setModalDividir(true)}>➗ Dividir esta cuenta</button>
+              {mesa?.cuenta_abierta && (
+                <button className="btn-primario" style={{ marginTop: 10 }} onClick={() => setModalPagarCuenta(true)}>
+                  💳 Pagar y cerrar cuenta — {money(cuentaPedidos.reduce((s, p) => s + Number(p.total), 0))}
+                </button>
+              )}
             </div>
           )}
         </>
@@ -759,6 +811,34 @@ export default function App() {
         </div>
       )}
 
+      {modalPagarCuenta && (
+        <div className="modal-overlay" onClick={() => setModalPagarCuenta(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>💳 Pagar y cerrar cuenta</h3>
+            <p className="pago-titulo">Total de toda la noche: <strong>{money(cuentaPedidos.reduce((s, p) => s + Number(p.total), 0))}</strong></p>
+            <p className="pago-titulo">¿Cómo vas a pagar?</p>
+            <div className="pago-metodos">
+              {METODOS_PAGO.filter((m) => m.id === 'efectivo' || bar[m.llaveField]).map((m) => (
+                <button key={m.id} className={`pago-btn ${metodoPagoCuenta === m.id ? 'activo' : ''}`} onClick={() => setMetodoPagoCuenta(m.id)}>{m.label}</button>
+              ))}
+            </div>
+            {metodoPagoCuenta !== 'efectivo' && (
+              <div className="pago-detalle">
+                <p className="pago-numero">Transfiere a: <strong>{bar[METODOS_PAGO.find((m) => m.id === metodoPagoCuenta).llaveField]}</strong></p>
+                <label className="pago-subir">
+                  {subiendoComprobanteCuenta ? 'Subiendo…' : comprobanteCuentaUrl ? '✅ Comprobante subido — cambiar' : '📎 Subir foto del comprobante'}
+                  <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => subirComprobanteCuenta(e.target.files[0])} />
+                </label>
+              </div>
+            )}
+            <button className="btn-primario" disabled={pagandoCuenta} onClick={pagarCuentaCompleta}>
+              {pagandoCuenta ? 'Enviando…' : 'Confirmar pago y avisar al mesero'}
+            </button>
+            <button className="btn-secundario" onClick={() => setModalPagarCuenta(false)}>Cancelar</button>
+          </div>
+        </div>
+      )}
+
       {modalCarrito && (
         <div className="modal-overlay" onClick={() => setModalCarrito(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -790,20 +870,26 @@ export default function App() {
             </div>
             <div className="carrito-total"><strong>Total</strong><strong>{money(totalCarrito)}</strong></div>
 
-            <p className="pago-titulo">¿Cómo vas a pagar?</p>
-            <div className="pago-metodos">
-              {METODOS_PAGO.filter((m) => m.id === 'efectivo' || bar[m.llaveField]).map((m) => (
-                <button key={m.id} className={`pago-btn ${metodoPago === m.id ? 'activo' : ''}`} onClick={() => setMetodoPago(m.id)}>{m.label}</button>
-              ))}
-            </div>
-            {metodoPago !== 'efectivo' && (
-              <div className="pago-detalle">
-                <p className="pago-numero">Transfiere a: <strong>{bar[METODOS_PAGO.find((m) => m.id === metodoPago).llaveField]}</strong></p>
-                <label className="pago-subir">
-                  {subiendoComprobante ? 'Subiendo…' : comprobanteUrl ? '✅ Comprobante subido — cambiar' : '📎 Subir foto del comprobante'}
-                  <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => subirComprobante(e.target.files[0])} />
-                </label>
-              </div>
+            {mesa?.cuenta_abierta ? (
+              <p className="aviso-cuenta-abierta">🤝 Tienes cuenta abierta con este bar — no necesitas pagar esta ronda, se suma a tu cuenta y pagas todo junto cuando quieras.</p>
+            ) : (
+              <>
+                <p className="pago-titulo">¿Cómo vas a pagar?</p>
+                <div className="pago-metodos">
+                  {METODOS_PAGO.filter((m) => m.id === 'efectivo' || bar[m.llaveField]).map((m) => (
+                    <button key={m.id} className={`pago-btn ${metodoPago === m.id ? 'activo' : ''}`} onClick={() => setMetodoPago(m.id)}>{m.label}</button>
+                  ))}
+                </div>
+                {metodoPago !== 'efectivo' && (
+                  <div className="pago-detalle">
+                    <p className="pago-numero">Transfiere a: <strong>{bar[METODOS_PAGO.find((m) => m.id === metodoPago).llaveField]}</strong></p>
+                    <label className="pago-subir">
+                      {subiendoComprobante ? 'Subiendo…' : comprobanteUrl ? '✅ Comprobante subido — cambiar' : '📎 Subir foto del comprobante'}
+                      <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => subirComprobante(e.target.files[0])} />
+                    </label>
+                  </div>
+                )}
+              </>
             )}
 
             <button className="btn-primario" disabled={enviando || totalItems === 0} onClick={confirmarPedido}>
