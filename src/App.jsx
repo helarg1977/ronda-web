@@ -3,6 +3,7 @@ import { supabase } from './supabaseClient'
 
 const ESTADOS = ['pendiente', 'confirmado', 'preparando', 'en_camino', 'entregado']
 const MINUTOS_RONDA_INTELIGENTE = 30 // a los cuantos minutos sin pedir se pregunta sola "¿otra ronda?"
+const META_VISITAS_FIDELIZACION = 10
 const MINUTOS_SNOOZE_RONDA = 15 // si dice "más tarde", cuánto espera antes de volver a preguntar
 const METODOS_PAGO = [
   { id: 'efectivo', label: '💵 Efectivo' },
@@ -60,6 +61,7 @@ export default function App() {
   const [mostrarGuardarTel, setMostrarGuardarTel] = useState(false)
   const [promociones, setPromociones] = useState([])
   const [promoVista, setPromoVista] = useState(null)
+  const [barAFull, setBarAFull] = useState(false)
   const [totalVisita, setTotalVisita] = useState(0)
 
   const [modalCarrito, setModalCarrito] = useState(false)
@@ -199,6 +201,12 @@ export default function App() {
       setPromociones(promosData || [])
       if (promosData && promosData.length > 0) setPromoVista(promosData[0])
 
+      // --- Prueba social a nivel de todo el bar (¿está a full esta noche?) ---
+      const { count: totalMesas } = await supabase.from('mesas').select('id', { count: 'exact', head: true }).eq('bar_id', barData.id).eq('activa', true)
+      const { data: pedidosActivosData } = await supabase.from('pedidos').select('mesa_id').eq('bar_id', barData.id).not('estado', 'in', '(entregado,cancelado)')
+      const mesasConPedido = new Set((pedidosActivosData || []).map((p) => p.mesa_id)).size
+      if (totalMesas && totalMesas > 0 && mesasConPedido / totalMesas >= 0.5) setBarAFull(true)
+
       const ultimoGuardado = localStorage.getItem(ultimoPedidoKey(mesaData.id))
       if (ultimoGuardado) {
         try { setUltimoPedido(JSON.parse(ultimoGuardado)) } catch (e) { localStorage.removeItem(ultimoPedidoKey(mesaData.id)) }
@@ -285,8 +293,8 @@ export default function App() {
       await supabase.from('clientes_bar').update({ visitas: existente.visitas + 1, ultima_visita: new Date().toISOString() }).eq('id', existente.id)
       setVisitasCliente(existente.visitas + 1)
     } else {
-      await supabase.from('clientes_bar').insert({ bar_id: bar.id, telefono: tel, nombre: nombreCliente || null, visitas: 1 })
-      setVisitasCliente(1)
+      await supabase.from('clientes_bar').insert({ bar_id: bar.id, telefono: tel, nombre: nombreCliente || null, visitas: 2 })
+      setVisitasCliente(2)
     }
     setMostrarGuardarTel(false)
     mostrarToast('¡Listo! La próxima vez te reconocemos 🙌')
@@ -296,6 +304,13 @@ export default function App() {
   useEffect(() => {
     if (!pedido?.id) return
     let yaProcesado = false
+
+    function reproducirSonidoRonda() {
+      try {
+        const audio = new Audio('https://raw.githubusercontent.com/helarg1977/ronda-app/main/assets/ronda-chime.wav')
+        audio.play().catch(() => {})
+      } catch (e) {}
+    }
 
     async function manejarCambio(estado) {
       if (estado === 'cancelado' && !yaProcesado) {
@@ -309,6 +324,9 @@ export default function App() {
     const channel = supabase
       .channel(`pedido-${pedido.id}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pedidos', filter: `id=eq.${pedido.id}` }, (payload) => {
+        if (['confirmado', 'preparando', 'en_camino', 'entregado'].includes(payload.new.estado) && payload.new.estado !== pedido.estado) {
+          reproducirSonidoRonda()
+        }
         setPedido(payload.new)
         manejarCambio(payload.new.estado)
         refrescarTotalVisita()
@@ -627,7 +645,21 @@ export default function App() {
       </header>
 
       {visitasCliente > 1 && (
-        <div className="banner-fidelidad">🎉 ¡Bienvenido de nuevo! Ya has venido {visitasCliente} veces.</div>
+        <div className="banner-fidelidad">
+          🎉 ¡Bienvenido de nuevo! Ya has venido {visitasCliente} veces.
+          {visitasCliente < META_VISITAS_FIDELIZACION && (
+            <div className="progreso-fidelidad">
+              <div className="progreso-fidelidad-barra">
+                <div className="progreso-fidelidad-relleno" style={{ width: `${Math.min(100, (visitasCliente / META_VISITAS_FIDELIZACION) * 100)}%` }} />
+              </div>
+              <span className="progreso-fidelidad-texto">{visitasCliente} de {META_VISITAS_FIDELIZACION} visitas hacia tu recompensa</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {barAFull && (
+        <div className="banner-hora-pico">🔥 Esta noche hay más gente de lo normal por aquí</div>
       )}
 
       {bar?.hora_pico_activa && (
