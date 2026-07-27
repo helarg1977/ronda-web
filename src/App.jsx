@@ -684,16 +684,18 @@ export default function App() {
         </div>
       )}
 
-      <div className="categorias-wrap">
-        <nav className="categorias">
-          {categorias.map((c) => (
-            <button key={c.id} className={`cat-btn ${categoriaActiva === c.id ? 'activa' : ''}`} onClick={() => setCategoriaActiva(c.id)}>
-              {c.icono ? `${c.icono} ` : ''}{c.nombre}
-            </button>
-          ))}
-        </nav>
-        {categorias.length > 3 && <div className="fade-derecha" />}
-      </div>
+      {categorias.length > 1 && (
+        <div className="categorias-wrap">
+          <nav className="categorias">
+            {categorias.map((c) => (
+              <button key={c.id} className={`cat-btn ${categoriaActiva === c.id ? 'activa' : ''}`} onClick={() => setCategoriaActiva(c.id)}>
+                {c.icono ? `${c.icono} ` : ''}{c.nombre}
+              </button>
+            ))}
+          </nav>
+          {categorias.length > 3 && <div className="fade-derecha" />}
+        </div>
+      )}
 
       <main className="productos">
         {productosVisibles.map((p) => (
