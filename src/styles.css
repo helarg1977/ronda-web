@@ -281,7 +281,18 @@ body {
   display: flex; align-items: center; justify-content: center;
   border: 1px solid var(--card-borde);
 }
-.qty-btn-add { background: var(--accent); color: #17131f; border-color: var(--accent); box-shadow: 0 0 14px 1px rgba(217, 142, 63, 0.5); }
+.qty-btn-add { background: var(--accent); color: #17131f; border-color: var(--accent); box-shadow: 0 0 14px 1px rgba(217, 142, 63, 0.5); transition: background 0.15s ease, transform 0.15s ease; }
+.qty-btn-add:active { transform: scale(0.88); }
+.qty-btn-confirmado {
+  background: var(--exito) !important; border-color: var(--exito) !important;
+  box-shadow: 0 0 14px 1px rgba(62, 207, 142, 0.5) !important;
+  animation: pop-confirmado 0.35s ease;
+}
+@keyframes pop-confirmado {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.22); }
+  100% { transform: scale(1); }
+}
 .qty-btn-add:disabled { opacity: 0.35; box-shadow: none; }
 .qty-num { min-width: 20px; text-align: center; font-size: 17px; font-weight: 800; }
 
