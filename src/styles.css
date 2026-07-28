@@ -61,6 +61,7 @@ body {
   font-size: clamp(26px, 7vw, 34px);
   letter-spacing: 0.5px;
   line-height: 1;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.6);
 }
 .header-mesa {
   display: inline-block;
@@ -342,6 +343,11 @@ body {
 .punto-nuevo {
   position: absolute; top: 4px; right: 4px;
   width: 10px; height: 10px; border-radius: 50%; background: var(--neon);
+}
+.btn-dividir-flotante {
+  background: var(--accent) !important; color: #17131f !important; border-color: var(--accent) !important;
+  width: 56px; height: 56px; font-size: 24px; font-weight: 800;
+  box-shadow: 0 6px 18px rgba(217, 142, 63, 0.55) !important;
 }
 
 .cta-flotante {
