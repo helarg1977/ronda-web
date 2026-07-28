@@ -383,6 +383,10 @@ body {
 .pago-btn.activo { background: var(--accent); color: #17131f; border-color: var(--accent); }
 .pago-detalle { background: var(--card); border: 1px solid var(--card-borde); border-radius: 14px; padding: 16px; margin-top: 12px; }
 .pago-numero { font-size: 15px; margin: 0 0 12px; }
+.btn-abrir-app {
+  width: 100%; background: var(--accent); color: #17131f; border: none;
+  border-radius: 12px; padding: 12px; font-weight: 700; font-size: 14px; margin-bottom: 12px;
+}
 .pago-subir {
   display: block; text-align: center;
   background: var(--bg-elevado); color: var(--accent); border: 1px dashed var(--accent);
