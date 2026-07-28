@@ -62,6 +62,7 @@ export default function App() {
   const [promociones, setPromociones] = useState([])
   const [promoVista, setPromoVista] = useState(null)
   const [barAFull, setBarAFull] = useState(false)
+  const [productoRecienAgregado, setProductoRecienAgregado] = useState(null)
   const [totalVisita, setTotalVisita] = useState(0)
 
   const [modalCarrito, setModalCarrito] = useState(false)
@@ -356,6 +357,9 @@ export default function App() {
   function agregar(productoId) {
     if (pedidoBloqueado) return
     setCarrito((c) => ({ ...c, [productoId]: (c[productoId] || 0) + 1 }))
+    if (navigator.vibrate) navigator.vibrate(15)
+    setProductoRecienAgregado(productoId)
+    setTimeout(() => setProductoRecienAgregado((actual) => (actual === productoId ? null : actual)), 650)
   }
   function quitar(productoId) {
     setCarrito((c) => {
@@ -757,7 +761,13 @@ export default function App() {
                   <span className="qty-num">{carrito[p.id]}</span>
                 </>
               )}
-              <button className="qty-btn qty-btn-add" onClick={() => agregar(p.id)} disabled={pedidoBloqueado}>+</button>
+              <button
+                className={`qty-btn qty-btn-add ${productoRecienAgregado === p.id ? 'qty-btn-confirmado' : ''}`}
+                onClick={() => agregar(p.id)}
+                disabled={pedidoBloqueado}
+              >
+                {productoRecienAgregado === p.id ? '✓' : '+'}
+              </button>
             </div>
           </div>
         ))}
