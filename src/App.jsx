@@ -648,7 +648,7 @@ export default function App() {
 
   return (
     <div className="app">
-      <header className="header" style={bar?.foto_portada ? { backgroundImage: `linear-gradient(rgba(15,13,22,0.55), rgba(15,13,22,0.85)), url(${bar.foto_portada})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
+      <header className="header" style={bar?.foto_portada ? { backgroundImage: `linear-gradient(rgba(15,13,22,0.75), rgba(15,13,22,0.96)), url(${bar.foto_portada})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
         <div className="header-fila-logo">
           {bar?.logo_url && <img src={bar.logo_url} alt="" className="header-logo" />}
           <div className="header-title">{bar?.nombre}</div>
@@ -782,7 +782,7 @@ export default function App() {
       <div id="capaFlotante">
         <div className="fila-secundarios">
           {cuentaPedidos.length > 0 && (
-            <button className="btn-flotante-secundario" onClick={() => setModalDividir(true)}>➗</button>
+            <button className="btn-flotante-secundario btn-dividir-flotante" onClick={() => setModalDividir(true)}>➗</button>
           )}
           <button className="btn-flotante-secundario" onClick={abrirChat}>
             💬 {hayMensajesNuevos && <span className="punto-nuevo" />}
