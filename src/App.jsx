@@ -7,8 +7,8 @@ const META_VISITAS_FIDELIZACION = 10
 const MINUTOS_SNOOZE_RONDA = 15 // si dice "más tarde", cuánto espera antes de volver a preguntar
 const METODOS_PAGO = [
   { id: 'efectivo', label: '💵 Efectivo' },
-  { id: 'nequi', label: '📱 Nequi', llaveField: 'llave_nequi' },
-  { id: 'daviplata', label: '📱 Daviplata', llaveField: 'llave_daviplata' },
+  { id: 'nequi', label: '📱 Nequi', llaveField: 'llave_nequi', esquemaApp: 'nequi://' },
+  { id: 'daviplata', label: '📱 Daviplata', llaveField: 'llave_daviplata', esquemaApp: 'daviplata://' },
   { id: 'bre_b', label: '📱 Bre-B', llaveField: 'llave_bre_b' },
 ]
 const ESTADO_LABEL = {
@@ -278,6 +278,11 @@ export default function App() {
       .from('pedidos').select('total')
       .eq('mesa_id', m.id).eq('sesion_id', m.sesion_actual).neq('estado', 'cancelado')
     setTotalVisita((data || []).reduce((s, p) => s + Number(p.total), 0))
+  }
+
+  function abrirAppPago(esquema) {
+    if (!esquema) return
+    window.location.href = esquema
   }
 
   function guardarNombre(valor) {
@@ -874,6 +879,11 @@ export default function App() {
             {metodoPagoCuenta !== 'efectivo' && (
               <div className="pago-detalle">
                 <p className="pago-numero">Transfiere a: <strong>{bar[METODOS_PAGO.find((m) => m.id === metodoPagoCuenta).llaveField]}</strong></p>
+                {METODOS_PAGO.find((m) => m.id === metodoPagoCuenta).esquemaApp && (
+                  <button type="button" className="btn-abrir-app" onClick={() => abrirAppPago(METODOS_PAGO.find((m) => m.id === metodoPagoCuenta).esquemaApp)}>
+                    Abrir {METODOS_PAGO.find((m) => m.id === metodoPagoCuenta).label}
+                  </button>
+                )}
                 <label className="pago-subir">
                   {subiendoComprobanteCuenta ? 'Subiendo…' : comprobanteCuentaUrl ? '✅ Comprobante subido — cambiar' : '📎 Subir foto del comprobante'}
                   <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => subirComprobanteCuenta(e.target.files[0])} />
@@ -932,6 +942,11 @@ export default function App() {
                 {metodoPago !== 'efectivo' && (
                   <div className="pago-detalle">
                     <p className="pago-numero">Transfiere a: <strong>{bar[METODOS_PAGO.find((m) => m.id === metodoPago).llaveField]}</strong></p>
+                    {METODOS_PAGO.find((m) => m.id === metodoPago).esquemaApp && (
+                      <button type="button" className="btn-abrir-app" onClick={() => abrirAppPago(METODOS_PAGO.find((m) => m.id === metodoPago).esquemaApp)}>
+                        Abrir {METODOS_PAGO.find((m) => m.id === metodoPago).label}
+                      </button>
+                    )}
                     <label className="pago-subir">
                       {subiendoComprobante ? 'Subiendo…' : comprobanteUrl ? '✅ Comprobante subido — cambiar' : '📎 Subir foto del comprobante'}
                       <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => subirComprobante(e.target.files[0])} />
