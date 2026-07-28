@@ -776,6 +776,9 @@ export default function App() {
 
       <div id="capaFlotante">
         <div className="fila-secundarios">
+          {cuentaPedidos.length > 0 && (
+            <button className="btn-flotante-secundario" onClick={() => setModalDividir(true)}>➗</button>
+          )}
           <button className="btn-flotante-secundario" onClick={abrirChat}>
             💬 {hayMensajesNuevos && <span className="punto-nuevo" />}
           </button>
@@ -815,7 +818,6 @@ export default function App() {
                   ))}
                 </div>
               ))}
-              <button className="btn-dividir" onClick={() => setModalDividir(true)}>➗ Dividir esta cuenta</button>
               {mesa?.cuenta_abierta && (
                 <button className="btn-primario" style={{ marginTop: 10 }} onClick={() => setModalPagarCuenta(true)}>
                   💳 Pagar y cerrar cuenta — {money(cuentaPedidos.reduce((s, p) => s + Number(p.total), 0))}
