@@ -166,7 +166,7 @@ export default function App() {
 
       const { data: barData, error: barErr } = await supabase
         .from('bares')
-        .select('id, nombre, logo_url, activo, llave_nequi, llave_daviplata, llave_bre_b, propinas_habilitadas, hora_pico_activa')
+        .select('id, nombre, logo_url, foto_portada, activo, llave_nequi, llave_daviplata, llave_bre_b, propinas_habilitadas, hora_pico_activa')
         .eq('id', mesaData.bar_id)
         .eq('activo', true)
         .maybeSingle()
@@ -639,8 +639,11 @@ export default function App() {
 
   return (
     <div className="app">
-      <header className="header">
-        <div className="header-title">{bar?.nombre}</div>
+      <header className="header" style={bar?.foto_portada ? { backgroundImage: `linear-gradient(rgba(15,13,22,0.55), rgba(15,13,22,0.85)), url(${bar.foto_portada})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
+        <div className="header-fila-logo">
+          {bar?.logo_url && <img src={bar.logo_url} alt="" className="header-logo" />}
+          <div className="header-title">{bar?.nombre}</div>
+        </div>
         <div className="header-mesa">Mesa {mesa?.numero}</div>
       </header>
 
