@@ -796,7 +796,7 @@ export default function App() {
         )}
         {totalItems === 0 && !pedido && ultimoPedido && (
           <button className="cta-flotante" onClick={repetirPedido} disabled={enviando}>
-            <span>{enviando ? 'Enviando…' : '🔁 Otra ronda'}</span>
+            <span>{enviando ? 'Enviando…' : '🍺 Otra ronda'}</span>
           </button>
         )}
       </div>
