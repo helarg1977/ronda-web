@@ -364,17 +364,25 @@ export default function App() {
     if (!origenEl || !destinoEl) return
     const origen = origenEl.getBoundingClientRect()
     const destino = destinoEl.getBoundingClientRect()
+    const dx = destino.left + destino.width / 2 - (origen.left + origen.width / 2)
+    const dy = destino.top - (origen.top + origen.height / 2)
+
     const bola = document.createElement('div')
     bola.className = 'bola-volando'
     bola.textContent = '🍺'
-    bola.style.left = `${origen.left + origen.width / 2 - 12}px`
-    bola.style.top = `${origen.top + origen.height / 2 - 12}px`
+    bola.style.left = `${origen.left + origen.width / 2 - 19}px`
+    bola.style.top = `${origen.top + origen.height / 2 - 19}px`
+    bola.style.setProperty('--dx', `${dx}px`)
+    bola.style.setProperty('--dy', `${dy}px`)
     document.body.appendChild(bola)
-    requestAnimationFrame(() => {
-      bola.style.transform = `translate(${destino.left + destino.width / 2 - (origen.left + origen.width / 2)}px, ${destino.top - (origen.top + origen.height / 2)}px) scale(0.3)`
-      bola.style.opacity = '0'
-    })
-    setTimeout(() => bola.remove(), 550)
+    bola.addEventListener('animationend', () => bola.remove())
+    setTimeout(() => bola.remove(), 900)
+
+    setTimeout(() => {
+      destinoEl.classList.add('capa-rebote')
+      setTimeout(() => destinoEl.classList.remove('capa-rebote'), 320)
+    }, 620)
+  }
   }
 
   function agregar(productoId, event) {
