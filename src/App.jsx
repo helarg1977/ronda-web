@@ -359,7 +359,7 @@ export default function App() {
   // El pedido bloquea nuevos productos solo cuando el mesero YA empezó a atenderlo (más allá de "pendiente")
   const pedidoBloqueado = pedido && pedido.estado !== 'pendiente' && pedido.estado !== 'entregado' && pedido.estado !== 'cancelado'
 
-  function volarAlCarrito(origenEl) {
+  function volarAlCarrito(origenEl, emoji) {
     const destinoEl = document.getElementById('capaFlotante')
     if (!origenEl || !destinoEl) return
     const origen = origenEl.getBoundingClientRect()
@@ -369,7 +369,7 @@ export default function App() {
 
     const bola = document.createElement('div')
     bola.className = 'bola-volando'
-    bola.textContent = '🍺'
+    bola.textContent = emoji || '🍺'
     bola.style.left = `${origen.left + origen.width / 2 - 19}px`
     bola.style.top = `${origen.top + origen.height / 2 - 19}px`
     bola.style.setProperty('--dx', `${dx}px`)
@@ -389,7 +389,11 @@ export default function App() {
     setCarrito((c) => ({ ...c, [productoId]: (c[productoId] || 0) + 1 }))
     if (navigator.vibrate) navigator.vibrate(15)
     setProductoRecienAgregado(productoId)
-    if (event?.currentTarget) volarAlCarrito(event.currentTarget)
+    if (event?.currentTarget) {
+      const producto = productos.find((p) => p.id === productoId)
+      const emoji = categorias.find((c) => c.id === producto?.categoria_id)?.icono || '🍸'
+      volarAlCarrito(event.currentTarget, emoji)
+    }
     setTimeout(() => setProductoRecienAgregado((actual) => (actual === productoId ? null : actual)), 650)
   }
   function quitar(productoId) {
