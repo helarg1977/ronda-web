@@ -187,11 +187,15 @@ export default function App() {
       if (telGuardado) {
         setTelefonoCliente(telGuardado)
         const { data: clienteExistente } = await supabase
-          .from('clientes_bar').select('id, visitas').eq('bar_id', barData.id).eq('telefono', telGuardado).maybeSingle()
+          .from('clientes_bar').select('id, nombre, visitas').eq('bar_id', barData.id).eq('telefono', telGuardado).maybeSingle()
         if (clienteExistente) {
           const nuevasVisitas = clienteExistente.visitas + 1
           await supabase.from('clientes_bar').update({ visitas: nuevasVisitas, ultima_visita: new Date().toISOString() }).eq('id', clienteExistente.id)
           setVisitasCliente(nuevasVisitas)
+          const nombreYaEscritoAqui = localStorage.getItem(nombreKey(mesaData.id))
+          if (!nombreYaEscritoAqui && clienteExistente.nombre) {
+            guardarNombre(clienteExistente.nombre)
+          }
         }
       } else {
         setTimeout(() => setMostrarGuardarTel(true), 4000)
@@ -296,7 +300,7 @@ export default function App() {
     localStorage.setItem(`ronda_tel_${bar.id}`, tel)
     const { data: existente } = await supabase.from('clientes_bar').select('id, visitas').eq('bar_id', bar.id).eq('telefono', tel).maybeSingle()
     if (existente) {
-      await supabase.from('clientes_bar').update({ visitas: existente.visitas + 1, ultima_visita: new Date().toISOString() }).eq('id', existente.id)
+      await supabase.from('clientes_bar').update({ visitas: existente.visitas + 1, ultima_visita: new Date().toISOString(), nombre: nombreCliente || null }).eq('id', existente.id)
       setVisitasCliente(existente.visitas + 1)
     } else {
       await supabase.from('clientes_bar').insert({ bar_id: bar.id, telefono: tel, nombre: nombreCliente || null, visitas: 2 })
