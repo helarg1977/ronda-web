@@ -69,6 +69,7 @@ export default function App() {
   const [modalChat, setModalChat] = useState(false)
   const [mensajesChat, setMensajesChat] = useState([])
   const [textoChat, setTextoChat] = useState('')
+  const [editandoMensajeId, setEditandoMensajeId] = useState(null)
   const [hayMensajesNuevos, setHayMensajesNuevos] = useState(false)
   const [cuentaPedidos, setCuentaPedidos] = useState([])
   const [cargandoCuenta, setCargandoCuenta] = useState(false)
@@ -639,6 +640,13 @@ export default function App() {
     if (!textoChat.trim() || !mesa) return
     const texto = textoChat.trim()
     setTextoChat('')
+    if (editandoMensajeId) {
+      const { error } = await supabase.from('mensajes_chat').update({ texto }).eq('id', editandoMensajeId)
+      if (error) { mostrarToast('No se pudo editar el mensaje.'); return }
+      setMensajesChat((m) => m.map((x) => (x.id === editandoMensajeId ? { ...x, texto } : x)))
+      setEditandoMensajeId(null)
+      return
+    }
     const { data, error } = await supabase.from('mensajes_chat').insert({
       bar_id: bar.id,
       canal: `mesa-${mesa.id}`,
@@ -648,6 +656,18 @@ export default function App() {
     }).select().single()
     if (error) { mostrarToast('No se pudo enviar el mensaje.'); return }
     setMensajesChat((m) => [...m, data])
+  }
+
+  function empezarEdicionMensaje(m) {
+    setEditandoMensajeId(m.id)
+    setTextoChat(m.texto)
+  }
+
+  async function borrarMensajeChat(m) {
+    if (!window.confirm('¿Borrar este mensaje?')) return
+    await supabase.from('mensajes_chat').delete().eq('id', m.id)
+    setMensajesChat((lista) => lista.filter((x) => x.id !== m.id))
+    if (editandoMensajeId === m.id) { setEditandoMensajeId(null); setTextoChat('') }
   }
 
   async function refrescarHistorial() {
@@ -1033,9 +1053,21 @@ export default function App() {
                 <div key={m.id} className={`chat-burbuja ${m.de === 'cliente' ? 'chat-propia' : 'chat-otra'}`}>
                   <div className="chat-autor">{m.de === 'cliente' ? 'Tú' : (m.nombre || m.de)}</div>
                   {m.texto}
+                  {m.de === 'cliente' && (
+                    <div className="chat-acciones">
+                      <button onClick={() => empezarEdicionMensaje(m)}>✏️</button>
+                      <button onClick={() => borrarMensajeChat(m)}>🗑️</button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
+            {editandoMensajeId && (
+              <div className="chat-editando-aviso">
+                ✏️ Editando mensaje
+                <button onClick={() => { setEditandoMensajeId(null); setTextoChat('') }}>Cancelar</button>
+              </div>
+            )}
             <div className="chat-entrada">
               <input
                 type="text"
@@ -1045,7 +1077,7 @@ export default function App() {
                 placeholder="Escribe un mensaje…"
                 maxLength={200}
               />
-              <button onClick={enviarMensajeChat}>Enviar</button>
+              <button onClick={enviarMensajeChat}>{editandoMensajeId ? 'Guardar' : 'Enviar'}</button>
             </div>
             <button className="btn-secundario" onClick={() => setModalChat(false)}>Cerrar</button>
           </div>
