@@ -534,8 +534,20 @@ body {
 }
 
 .bola-volando {
-  position: fixed; width: 24px; height: 24px; font-size: 22px; line-height: 24px;
-  text-align: center; z-index: 200; pointer-events: none;
-  transition: transform 0.5s cubic-bezier(0.3, 0, 0.7, 1), opacity 0.5s ease;
-  transform: translate(0, 0) scale(1);
+  position: fixed; width: 38px; height: 38px; font-size: 34px; line-height: 38px;
+  text-align: center; z-index: 999; pointer-events: none;
+  filter: drop-shadow(0 4px 10px rgba(0,0,0,0.5));
+  animation: volarCarrito 0.7s cubic-bezier(0.25, 0.55, 0.35, 1) forwards;
+}
+@keyframes volarCarrito {
+  0%   { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 1; }
+  55%  { transform: translate(calc(var(--dx) * 0.65), calc(var(--dy) * 0.45 - 60px)) scale(1.4) rotate(190deg); opacity: 1; }
+  85%  { transform: translate(calc(var(--dx) * 0.97), calc(var(--dy) * 0.97)) scale(0.6) rotate(340deg); opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(0.1) rotate(380deg); opacity: 0; }
+}
+#capaFlotante.capa-rebote { animation: rebotarCapa 0.32s ease; }
+@keyframes rebotarCapa {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.12); }
+  100% { transform: scale(1); }
 }
