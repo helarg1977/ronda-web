@@ -1007,8 +1007,10 @@ export default function App() {
               type="tel"
               className="input-telefono"
               value={telefonoCliente}
-              onChange={(e) => setTelefonoCliente(e.target.value)}
+              onChange={(e) => setTelefonoCliente(e.target.value.replace(/\D/g, '').slice(0, 10))}
               placeholder="Tu número de celular"
+              maxLength={10}
+              inputMode="numeric"
             />
             <button className="btn-primario" onClick={guardarTelefonoCliente}>Guardar</button>
             <button className="btn-secundario" onClick={() => setMostrarGuardarTel(false)}>Ahora no</button>
