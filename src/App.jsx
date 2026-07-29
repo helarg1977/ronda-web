@@ -70,6 +70,7 @@ export default function App() {
   const [mensajesChat, setMensajesChat] = useState([])
   const [textoChat, setTextoChat] = useState('')
   const [editandoMensajeId, setEditandoMensajeId] = useState(null)
+  const [mostrarCampoNombre, setMostrarCampoNombre] = useState(false)
   const [hayMensajesNuevos, setHayMensajesNuevos] = useState(false)
   const [cuentaPedidos, setCuentaPedidos] = useState([])
   const [cargandoCuenta, setCargandoCuenta] = useState(false)
@@ -424,6 +425,7 @@ export default function App() {
     ;(items || []).forEach((it) => { mapa[it.producto_id] = it.cantidad })
     setCarrito(mapa)
     setEditando(true)
+    setMostrarCampoNombre(!nombreCliente)
     setModalCarrito(true)
   }
 
@@ -441,6 +443,7 @@ export default function App() {
 
   function abrirCarritoNuevo() {
     setEditando(false)
+    setMostrarCampoNombre(!nombreCliente)
     setModalCarrito(true)
   }
 
@@ -957,7 +960,7 @@ export default function App() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h3>{editando ? 'Editar tu pedido' : 'Tu pedido'}</h3>
 
-            {!nombreCliente && (
+            {mostrarCampoNombre && (
               <div className="campo-nombre">
                 <label>¿Quién de la mesa está pidiendo?</label>
                 <input type="text" value={nombreCliente} onChange={(e) => guardarNombre(e.target.value)} placeholder="Ej: Santiago" maxLength={30} />
