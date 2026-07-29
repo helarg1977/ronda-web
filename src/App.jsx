@@ -359,11 +359,30 @@ export default function App() {
   // El pedido bloquea nuevos productos solo cuando el mesero YA empezó a atenderlo (más allá de "pendiente")
   const pedidoBloqueado = pedido && pedido.estado !== 'pendiente' && pedido.estado !== 'entregado' && pedido.estado !== 'cancelado'
 
-  function agregar(productoId) {
+  function volarAlCarrito(origenEl) {
+    const destinoEl = document.getElementById('capaFlotante')
+    if (!origenEl || !destinoEl) return
+    const origen = origenEl.getBoundingClientRect()
+    const destino = destinoEl.getBoundingClientRect()
+    const bola = document.createElement('div')
+    bola.className = 'bola-volando'
+    bola.textContent = '🍺'
+    bola.style.left = `${origen.left + origen.width / 2 - 12}px`
+    bola.style.top = `${origen.top + origen.height / 2 - 12}px`
+    document.body.appendChild(bola)
+    requestAnimationFrame(() => {
+      bola.style.transform = `translate(${destino.left + destino.width / 2 - (origen.left + origen.width / 2)}px, ${destino.top - (origen.top + origen.height / 2)}px) scale(0.3)`
+      bola.style.opacity = '0'
+    })
+    setTimeout(() => bola.remove(), 550)
+  }
+
+  function agregar(productoId, event) {
     if (pedidoBloqueado) return
     setCarrito((c) => ({ ...c, [productoId]: (c[productoId] || 0) + 1 }))
     if (navigator.vibrate) navigator.vibrate(15)
     setProductoRecienAgregado(productoId)
+    if (event?.currentTarget) volarAlCarrito(event.currentTarget)
     setTimeout(() => setProductoRecienAgregado((actual) => (actual === productoId ? null : actual)), 650)
   }
   function quitar(productoId) {
@@ -768,7 +787,7 @@ export default function App() {
               )}
               <button
                 className={`qty-btn qty-btn-add ${productoRecienAgregado === p.id ? 'qty-btn-confirmado' : ''}`}
-                onClick={() => agregar(p.id)}
+                onClick={(e) => agregar(p.id, e)}
                 disabled={pedidoBloqueado}
               >
                 {productoRecienAgregado === p.id ? '✓' : '+'}
