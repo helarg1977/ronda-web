@@ -156,7 +156,7 @@ export default function App() {
 
       const { data: mesaData, error: mesaErr } = await supabase
         .from('mesas')
-        .select('id, numero, bar_id, activa, sesion_actual, cuenta_abierta')
+        .select('id, numero, bar_id, activa, sesion_actual, cuenta_abierta, sesion_iniciada_en')
         .eq('qr_code', qr)
         .eq('activa', true)
         .maybeSingle()
@@ -165,6 +165,12 @@ export default function App() {
         setErrorMsg('No encontramos esta mesa. Pide ayuda al mesero.')
         setFase('error')
         return
+      }
+
+      if (!mesaData.sesion_iniciada_en) {
+        const ahoraIso = new Date().toISOString()
+        await supabase.from('mesas').update({ sesion_iniciada_en: ahoraIso }).eq('id', mesaData.id).is('sesion_iniciada_en', null)
+        mesaData.sesion_iniciada_en = ahoraIso
       }
 
       const { data: barData, error: barErr } = await supabase
