@@ -383,7 +383,6 @@ export default function App() {
       setTimeout(() => destinoEl.classList.remove('capa-rebote'), 320)
     }, 620)
   }
-  }
 
   function agregar(productoId, event) {
     if (pedidoBloqueado) return
