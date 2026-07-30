@@ -13,10 +13,10 @@ const METODOS_PAGO = [
 ]
 const ESTADO_LABEL = {
   pendiente: 'El bar ya vio tu pedido',
-  confirmado: 'Confirmado por el bar',
-  preparando: 'Preparando tu ronda',
-  en_camino: 'Tu mesero va en camino',
-  entregado: '¡Entregado! Buen provecho 🍻',
+  confirmado: 'El bar aceptó tu pedido',
+  preparando: 'Estamos preparando tu ronda',
+  en_camino: 'Tu mesero ya va hacia tu mesa',
+  entregado: '¡Entregado! Disfrútalo 🍻',
   cancelado: 'Pedido cancelado',
 }
 const ESTADO_ICONO = {
@@ -52,6 +52,7 @@ export default function App() {
   const [categoriaActiva, setCategoriaActiva] = useState(null)
   const [carrito, setCarrito] = useState({}) // { productoId: cantidad }
   const [pedido, setPedido] = useState(null) // pedido activo (no entregado/cancelado) o null
+  const [nombreMeseroActual, setNombreMeseroActual] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [editando, setEditando] = useState(false)
 
@@ -630,6 +631,7 @@ export default function App() {
   }
 
   async function enviarSolicitud(tipo) {
+    setModalSolicitud(false)
     const { error } = await supabase.from('solicitudes').insert({ bar_id: bar.id, mesa_id: mesa.id, tipo })
     mostrarToast(error ? 'No se pudo enviar. Intenta otra vez.' : 'Ya avisamos al mesero 👍')
   }
@@ -675,11 +677,16 @@ export default function App() {
 
   async function borrarMensajeChat(m) {
     if (!window.confirm('¿Borrar este mensaje?')) return
-    const { error } = await supabase.from('mensajes_chat').delete().eq('id', m.id)
-    if (error) { mostrarToast('No se pudo borrar el mensaje.'); return }
+    await supabase.from('mensajes_chat').delete().eq('id', m.id)
     setMensajesChat((lista) => lista.filter((x) => x.id !== m.id))
     if (editandoMensajeId === m.id) { setEditandoMensajeId(null); setTextoChat('') }
   }
+
+  useEffect(() => {
+    if (!pedido?.mesero_id) { setNombreMeseroActual(''); return }
+    supabase.from('usuarios_bar').select('nombre').eq('id', pedido.mesero_id).maybeSingle()
+      .then(({ data }) => setNombreMeseroActual(data?.nombre?.split(' ')[0] || ''))
+  }, [pedido?.mesero_id])
 
   async function refrescarHistorial() {
     if (!mesa) return
@@ -723,7 +730,7 @@ export default function App() {
 
       {visitasCliente > 1 && (
         <div className="banner-fidelidad">
-          🍻 ¡Qué bueno verte otra vez! Esta es tu visita #{visitasCliente}.
+          {visitasCliente >= 25 ? '🥳 Nos alegra tenerte otra noche.' : visitasCliente >= 10 ? '⭐ Tu mesa ya te conoce.' : '🍻 ¡Qué bueno verte otra vez!'} Esta es tu visita #{visitasCliente}.
           {visitasCliente < META_VISITAS_FIDELIZACION && (
             <div className="progreso-fidelidad">
               <div className="progreso-fidelidad-barra">
@@ -779,6 +786,9 @@ export default function App() {
           <div className="banner-icono">{ESTADO_ICONO[pedido.estado] || '🍻'}</div>
           <div className="banner-texto">
             <div className="banner-titulo">{ESTADO_LABEL[pedido.estado] || pedido.estado}</div>
+            {nombreMeseroActual && ['confirmado', 'preparando', 'en_camino'].includes(pedido.estado) && (
+              <div className="banner-mesero">🧑‍🍳 {nombreMeseroActual} te está atendiendo</div>
+            )}
             <div className="banner-total">{money(pedido.total)}</div>
             {pedidoBloqueado && <div className="banner-nota">El mesero ya lo está atendiendo — cuando lo entreguen podrás pedir otra ronda.</div>}
           </div>
@@ -833,7 +843,7 @@ export default function App() {
             <div className="producto-info">
               <div className="producto-nombre-linea">
                 <span className="producto-nombre">{p.nombre}</span>
-                {p.id === topProductoId && <span className="producto-badge">🔥 Popular</span>}
+                {p.id === topProductoId && <span className="producto-badge">🔥 Más pedido</span>}
               </div>
               <div className="producto-precio">{money(p.precio)}</div>
               {p.producto_sugerido_id && productos.find((x) => x.id === p.producto_sugerido_id) && (
@@ -1076,7 +1086,7 @@ export default function App() {
             <h3>✋💬 Habla con tu mesero</h3>
             <div className="contacto-rapido">
               {SOLICITUD_OPCIONES.map((o) => (
-                <button key={o.tipo} onClick={() => (o.tipo === 'otro' ? setMostrarTextoLibre(true) : enviarSolicitud(o.tipo))}>{o.label}</button>
+                <button key={o.tipo} onClick={() => { if (o.tipo === 'otro' || o.tipo === 'mesero') setMostrarTextoLibre(true); if (o.tipo !== 'otro') enviarSolicitud(o.tipo) }}>{o.label}</button>
               ))}
             </div>
             {(mensajesChat.length > 0 || mostrarTextoLibre) && (
