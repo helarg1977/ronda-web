@@ -480,6 +480,14 @@ export default function App() {
     if (totalCuenta <= 0 || !cuentaPedidos.length) return
     setPagandoCuenta(true)
     try {
+      const idsDeLaCuenta = cuentaPedidos.map((p) => p.id)
+      const { data: pagoExistente } = await supabase
+        .from('pagos').select('id, confirmado').in('pedido_id', idsDeLaCuenta).eq('confirmado', false).limit(1).maybeSingle()
+      if (pagoExistente) {
+        mostrarToast('Ya reportaste este pago — el bar todavía no lo confirma. Espera un momento o pregúntale al mesero.')
+        setModalPagarCuenta(false)
+        return
+      }
       const ultimoPedidoId = cuentaPedidos[cuentaPedidos.length - 1].id
       await supabase.from('pagos').insert({
         pedido_id: ultimoPedidoId, metodo: metodoPagoCuenta, monto: totalCuenta,
