@@ -10,6 +10,7 @@ const METODOS_PAGO = [
   { id: 'nequi', label: '📱 Nequi', llaveField: 'llave_nequi', esquemaApp: 'nequi://' },
   { id: 'daviplata', label: '📱 Daviplata', llaveField: 'llave_daviplata', esquemaApp: 'daviplata://' },
   { id: 'bre_b', label: '📱 Bre-B', llaveField: 'llave_bre_b' },
+  { id: 'mixto', label: '🔀 Parte efectivo, parte transferencia' },
 ]
 const ESTADO_LABEL = {
   pendiente: 'El bar ya vio tu pedido',
@@ -89,6 +90,7 @@ export default function App() {
   const [modalDividir, setModalDividir] = useState(false)
   const [modalPagarCuenta, setModalPagarCuenta] = useState(false)
   const [metodoPagoCuenta, setMetodoPagoCuenta] = useState('efectivo')
+  const [montoEfectivoMixtoCuenta, setMontoEfectivoMixtoCuenta] = useState('')
   const [comprobanteCuentaUrl, setComprobanteCuentaUrl] = useState('')
   const [subiendoComprobanteCuenta, setSubiendoComprobanteCuenta] = useState(false)
   const [pagandoCuenta, setPagandoCuenta] = useState(false)
@@ -97,6 +99,7 @@ export default function App() {
   const [personasDividir, setPersonasDividir] = useState(2)
 
   const [metodoPago, setMetodoPago] = useState('efectivo')
+  const [montoEfectivoMixto, setMontoEfectivoMixto] = useState('')
   const [comprobanteUrl, setComprobanteUrl] = useState(null)
   const [subiendoComprobante, setSubiendoComprobante] = useState(false)
 
@@ -497,6 +500,8 @@ export default function App() {
       await supabase.from('pagos').insert({
         pedido_id: ultimoPedidoId, metodo: metodoPagoCuenta, monto: totalCuenta,
         comprobante_url: comprobanteCuentaUrl || null, confirmado: false,
+        monto_efectivo: metodoPagoCuenta === 'mixto' ? Number(montoEfectivoMixtoCuenta || 0) : null,
+        monto_transferencia: metodoPagoCuenta === 'mixto' ? Math.max(0, totalCuenta - Number(montoEfectivoMixtoCuenta || 0)) : null,
       })
       await supabase.from('solicitudes').insert({ bar_id: bar.id, mesa_id: mesa.id, tipo: 'cuenta' })
       mostrarToast('¡Listo! Ya avisamos que quieres pagar y cerrar la cuenta 🙌')
@@ -562,7 +567,11 @@ export default function App() {
         })
         await supabase.from('pedido_items').insert(items)
         if (!mesa.cuenta_abierta) {
-          await supabase.from('pagos').insert({ pedido_id: nuevoPedido.id, metodo: metodoPago, monto: total, comprobante_url: comprobanteUrl || null, confirmado: false })
+          await supabase.from('pagos').insert({
+            pedido_id: nuevoPedido.id, metodo: metodoPago, monto: total, comprobante_url: comprobanteUrl || null, confirmado: false,
+            monto_efectivo: metodoPago === 'mixto' ? Number(montoEfectivoMixto || 0) : null,
+            monto_transferencia: metodoPago === 'mixto' ? Math.max(0, total - Number(montoEfectivoMixto || 0)) : null,
+          })
         }
 
         localStorage.setItem(storageKey(mesa.id), nuevoPedido.id)
@@ -993,11 +1002,28 @@ export default function App() {
             <p className="pago-titulo">Total de toda la noche: <strong>{money(cuentaPedidos.reduce((s, p) => s + Number(p.total), 0))}</strong></p>
             <p className="pago-titulo">¿Cómo vas a pagar?</p>
             <div className="pago-metodos">
-              {METODOS_PAGO.filter((m) => m.id === 'efectivo' || bar[m.llaveField]).map((m) => (
+              {METODOS_PAGO.filter((m) => m.id === 'efectivo' || (m.id === 'mixto' && ['llave_nequi','llave_daviplata','llave_bre_b'].some((k) => bar[k])) || bar[m.llaveField]).map((m) => (
                 <button key={m.id} className={`pago-btn ${metodoPagoCuenta === m.id ? 'activo' : ''}`} onClick={() => setMetodoPagoCuenta(m.id)}>{m.label}</button>
               ))}
             </div>
-            {metodoPagoCuenta !== 'efectivo' && (
+            {metodoPagoCuenta === 'mixto' && (
+              <div className="pago-detalle">
+                <p className="pago-numero">¿Cuánto vas a pagar en efectivo?</p>
+                <input
+                  type="number" className="input-telefono" value={montoEfectivoMixtoCuenta}
+                  onChange={(e) => setMontoEfectivoMixtoCuenta(e.target.value)}
+                  placeholder="Ej: 20000" min="0" max={cuentaPedidos.reduce((s, p) => s + Number(p.total), 0)}
+                />
+                <p className="pago-numero" style={{ marginTop: 10 }}>
+                  El resto ({money(Math.max(0, cuentaPedidos.reduce((s, p) => s + Number(p.total), 0) - Number(montoEfectivoMixtoCuenta || 0)))}) lo transfieres a cualquiera de nuestros medios:
+                </p>
+                <label className="pago-subir">
+                  {subiendoComprobanteCuenta ? 'Subiendo…' : comprobanteCuentaUrl ? '✅ Comprobante subido — cambiar' : '📎 Subir foto del comprobante de la transferencia'}
+                  <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => subirComprobanteCuenta(e.target.files[0])} />
+                </label>
+              </div>
+            )}
+            {metodoPagoCuenta !== 'efectivo' && metodoPagoCuenta !== 'mixto' && (
               <div className="pago-detalle">
                 <p className="pago-numero">Transfiere a: <strong>{bar[METODOS_PAGO.find((m) => m.id === metodoPagoCuenta).llaveField]}</strong></p>
                 {METODOS_PAGO.find((m) => m.id === metodoPagoCuenta).esquemaApp && (
@@ -1056,11 +1082,28 @@ export default function App() {
               <>
                 <p className="pago-titulo">¿Cómo vas a pagar?</p>
                 <div className="pago-metodos">
-                  {METODOS_PAGO.filter((m) => m.id === 'efectivo' || bar[m.llaveField]).map((m) => (
+                  {METODOS_PAGO.filter((m) => m.id === 'efectivo' || (m.id === 'mixto' && ['llave_nequi','llave_daviplata','llave_bre_b'].some((k) => bar[k])) || bar[m.llaveField]).map((m) => (
                     <button key={m.id} className={`pago-btn ${metodoPago === m.id ? 'activo' : ''}`} onClick={() => setMetodoPago(m.id)}>{m.label}</button>
                   ))}
                 </div>
-                {metodoPago !== 'efectivo' && (
+                {metodoPago === 'mixto' && (
+                  <div className="pago-detalle">
+                    <p className="pago-numero">¿Cuánto vas a pagar en efectivo?</p>
+                    <input
+                      type="number" className="input-telefono" value={montoEfectivoMixto}
+                      onChange={(e) => setMontoEfectivoMixto(e.target.value)}
+                      placeholder="Ej: 10000" min="0" max={totalCarrito}
+                    />
+                    <p className="pago-numero" style={{ marginTop: 10 }}>
+                      El resto ({money(Math.max(0, totalCarrito - Number(montoEfectivoMixto || 0)))}) lo transfieres a cualquiera de nuestros medios:
+                    </p>
+                    <label className="pago-subir">
+                      {subiendoComprobante ? 'Subiendo…' : comprobanteUrl ? '✅ Comprobante subido — cambiar' : '📎 Subir foto del comprobante de la transferencia'}
+                      <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => subirComprobante(e.target.files[0])} />
+                    </label>
+                  </div>
+                )}
+                {metodoPago !== 'efectivo' && metodoPago !== 'mixto' && (
                   <div className="pago-detalle">
                     <p className="pago-numero">Transfiere a: <strong>{bar[METODOS_PAGO.find((m) => m.id === metodoPago).llaveField]}</strong></p>
                     {METODOS_PAGO.find((m) => m.id === metodoPago).esquemaApp && (
