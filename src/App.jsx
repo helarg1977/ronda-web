@@ -45,6 +45,7 @@ function money(n) {
 
 export default function App() {
   const [fase, setFase] = useState('cargando') // cargando | error | listo
+  const [mesaCerrada, setMesaCerrada] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [mesa, setMesa] = useState(null)
   const [bar, setBar] = useState(null)
@@ -332,6 +333,19 @@ export default function App() {
   }
 
   // --- Suscripción en tiempo real + respaldo por polling al pedido activo ---
+  useEffect(() => {
+    if (!mesa?.id) return
+    const canal = supabase
+      .channel(`mesa-sesion-${mesa.id}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'mesas', filter: `id=eq.${mesa.id}` }, (payload) => {
+        if (payload.new.sesion_actual !== mesa.sesion_actual) {
+          setMesaCerrada(true)
+        }
+      })
+      .subscribe()
+    return () => supabase.removeChannel(canal)
+  }, [mesa?.id, mesa?.sesion_actual])
+
   useEffect(() => {
     if (!pedido?.id) return
     let yaProcesado = false
@@ -748,6 +762,16 @@ export default function App() {
         <div className="center-msg-icono">🍸</div>
         <p>{errorMsg}</p>
         <button className="btn-primario" style={{ maxWidth: 220 }} onClick={() => window.location.reload()}>Reintentar</button>
+      </div>
+    )
+  }
+
+  if (mesaCerrada) {
+    return (
+      <div className="center-msg">
+        <div className="center-msg-icono">🍻</div>
+        <p style={{ fontSize: 20, fontWeight: 800 }}>¡Gracias por venir!</p>
+        <p>Esperamos que la hayas pasado increíble. Vuelve pronto 🙌</p>
       </div>
     )
   }
