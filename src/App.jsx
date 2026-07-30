@@ -164,7 +164,12 @@ export default function App() {
         .eq('activa', true)
         .maybeSingle()
 
-      if (mesaErr || !mesaData) {
+      if (mesaErr) {
+        setErrorMsg('No pudimos conectarnos. Revisa tu internet e intenta de nuevo.')
+        setFase('error')
+        return
+      }
+      if (!mesaData) {
         setErrorMsg('No encontramos esta mesa. Pide ayuda al mesero.')
         setFase('error')
         return
@@ -729,7 +734,13 @@ export default function App() {
     return <div className="center-msg"><div className="spinner" /><p>Abriendo la carta…</p></div>
   }
   if (fase === 'error') {
-    return <div className="center-msg"><div className="center-msg-icono">🍸</div><p>{errorMsg}</p></div>
+    return (
+      <div className="center-msg">
+        <div className="center-msg-icono">🍸</div>
+        <p>{errorMsg}</p>
+        <button className="btn-primario" style={{ maxWidth: 220 }} onClick={() => window.location.reload()}>Reintentar</button>
+      </div>
+    )
   }
 
   return (
