@@ -82,6 +82,7 @@ export default function App() {
   const [upsell, setUpsell] = useState(null)
   const [calificacion, setCalificacion] = useState(0)
   const [propinaEnviada, setPropinaEnviada] = useState(false)
+  const [pidioCuenta, setPidioCuenta] = useState(false)
   const [topProductoId, setTopProductoId] = useState(null)
   const [historialAbierto, setHistorialAbierto] = useState(true)
   const [fotoAmpliada, setFotoAmpliada] = useState(null)
@@ -226,6 +227,8 @@ export default function App() {
       if (ultimoGuardado) {
         try { setUltimoPedido(JSON.parse(ultimoGuardado)) } catch (e) { localStorage.removeItem(ultimoPedidoKey(mesaData.id)) }
       }
+
+      setPidioCuenta(localStorage.getItem(`ronda_pidio_cuenta_${mesaData.id}`) === '1')
 
       const savedId = localStorage.getItem(storageKey(mesaData.id))
       if (savedId) {
@@ -552,7 +555,7 @@ export default function App() {
         localStorage.setItem(storageKey(mesa.id), nuevoPedido.id)
         localStorage.setItem(ultimoPedidoKey(mesa.id), JSON.stringify(Object.fromEntries(entries)))
         setUltimoPedido(Object.fromEntries(entries))
-        setPedido(nuevoPedido)
+        setPedido(nuevoPedido); setPidioCuenta(false); localStorage.removeItem(`ronda_pidio_cuenta_${mesa.id}`)
         setCalificacion(0)
         setPropinaEnviada(false)
       }
@@ -595,7 +598,7 @@ export default function App() {
       await supabase.from('pedido_items').insert(items)
       await supabase.from('pagos').insert({ pedido_id: nuevoPedido.id, metodo: 'efectivo', monto: total, confirmado: false })
       localStorage.setItem(storageKey(mesa.id), nuevoPedido.id)
-      setPedido(nuevoPedido)
+      setPedido(nuevoPedido); setPidioCuenta(false); localStorage.removeItem(`ronda_pidio_cuenta_${mesa.id}`)
       setCalificacion(0)
       setPropinaEnviada(false)
       setCarrito({})
@@ -633,6 +636,10 @@ export default function App() {
   async function enviarSolicitud(tipo) {
     const { error } = await supabase.from('solicitudes').insert({ bar_id: bar.id, mesa_id: mesa.id, tipo })
     mostrarToast(error ? 'No se pudo enviar. Intenta otra vez.' : 'Ya avisamos al mesero 👍')
+    if (tipo === 'cuenta' && !error) {
+      setPidioCuenta(true)
+      localStorage.setItem(`ronda_pidio_cuenta_${mesa.id}`, '1')
+    }
   }
 
   async function cargarChat() {
@@ -800,7 +807,7 @@ export default function App() {
         </div>
       )}
 
-      {pedido?.estado === 'entregado' && !propinaEnviada && bar?.propinas_habilitadas !== false && (
+      {pedido?.estado === 'entregado' && !propinaEnviada && pidioCuenta && bar?.propinas_habilitadas !== false && (
         <div className="propina-box">
           <p className="propina-titulo">¿Cómo te atendieron?</p>
           <div className="estrellas">
