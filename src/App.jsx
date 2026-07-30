@@ -630,7 +630,6 @@ export default function App() {
   }
 
   async function enviarSolicitud(tipo) {
-    setModalSolicitud(false)
     const { error } = await supabase.from('solicitudes').insert({ bar_id: bar.id, mesa_id: mesa.id, tipo })
     mostrarToast(error ? 'No se pudo enviar. Intenta otra vez.' : 'Ya avisamos al mesero 👍')
   }
@@ -676,7 +675,8 @@ export default function App() {
 
   async function borrarMensajeChat(m) {
     if (!window.confirm('¿Borrar este mensaje?')) return
-    await supabase.from('mensajes_chat').delete().eq('id', m.id)
+    const { error } = await supabase.from('mensajes_chat').delete().eq('id', m.id)
+    if (error) { mostrarToast('No se pudo borrar el mensaje.'); return }
     setMensajesChat((lista) => lista.filter((x) => x.id !== m.id))
     if (editandoMensajeId === m.id) { setEditandoMensajeId(null); setTextoChat('') }
   }
