@@ -563,6 +563,7 @@ export default function App() {
       setComprobanteUrl(null)
       refrescarTotalVisita()
       refrescarHistorial()
+      mostrarToast('✅ ¡Pedido enviado! El bar ya lo puede ver')
     } catch (e) {
       mostrarToast('No pudimos enviar tu pedido. Intenta de nuevo.')
     } finally {
@@ -892,7 +893,12 @@ export default function App() {
               {cuentaPedidos.map((p, i) => (
                 <div key={p.id} className="cuenta-ronda">
                   <div className="cuenta-fila cuenta-fila-titulo">
-                    <span>{new Date(p.created_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })} — {p.estado === 'entregado' ? '✔ Entregado' : (ESTADO_LABEL[p.estado] || p.estado)}</span>
+                    <span className="cuenta-fila-hora">
+                      {new Date(p.created_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                      <span className={`chip-estado chip-estado-${p.estado}`}>
+                        {p.estado === 'entregado' ? '✔ Entregado' : p.estado === 'cancelado' ? '✖ Cancelado' : (ESTADO_LABEL[p.estado] || p.estado)}
+                      </span>
+                    </span>
                     <span>{money(p.total)}</span>
                   </div>
                   {p.items.map((it, j) => (
