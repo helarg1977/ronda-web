@@ -631,7 +631,6 @@ export default function App() {
   }
 
   async function enviarSolicitud(tipo) {
-    setModalSolicitud(false)
     const { error } = await supabase.from('solicitudes').insert({ bar_id: bar.id, mesa_id: mesa.id, tipo })
     mostrarToast(error ? 'No se pudo enviar. Intenta otra vez.' : 'Ya avisamos al mesero 👍')
   }
