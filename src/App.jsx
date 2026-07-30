@@ -71,6 +71,7 @@ export default function App() {
   const [textoChat, setTextoChat] = useState('')
   const [editandoMensajeId, setEditandoMensajeId] = useState(null)
   const [mostrarCampoNombre, setMostrarCampoNombre] = useState(false)
+  const [mostrarTextoLibre, setMostrarTextoLibre] = useState(false)
   const [hayMensajesNuevos, setHayMensajesNuevos] = useState(false)
   const [cuentaPedidos, setCuentaPedidos] = useState([])
   const [cargandoCuenta, setCargandoCuenta] = useState(false)
@@ -721,7 +722,7 @@ export default function App() {
 
       {visitasCliente > 1 && (
         <div className="banner-fidelidad">
-          🎉 ¡Bienvenido de nuevo! Ya has venido {visitasCliente} veces.
+          🍻 ¡Qué bueno verte otra vez! Esta es tu visita #{visitasCliente}.
           {visitasCliente < META_VISITAS_FIDELIZACION && (
             <div className="progreso-fidelidad">
               <div className="progreso-fidelidad-barra">
@@ -752,9 +753,25 @@ export default function App() {
       )}
 
       <div className="total-visita" onClick={() => { setHistorialAbierto(true); document.querySelector('.historial-titulo')?.scrollIntoView({ behavior: 'smooth' }) }} style={{ cursor: 'pointer' }}>
-        <span>Hoy llevas</span>
+        <span>Tu cuenta hasta ahora</span>
         <strong>{money(totalVisita)}</strong>
       </div>
+
+      {pedido && pedido.estado !== 'cancelado' && (() => {
+        const pasoActual = { pendiente: 0, confirmado: 1, preparando: 1, en_camino: 2, entregado: 3 }[pedido.estado] ?? 0
+        const pasos = ['Recibido', 'Preparando', 'En camino', 'Entregado']
+        return (
+          <div className="barra-estado-pedido">
+            {pasos.map((p, i) => (
+              <div key={p} className={`barra-estado-paso ${i <= pasoActual ? 'activo' : ''} ${i === pasoActual ? 'actual' : ''}`}>
+                <div className="barra-estado-punto" />
+                <span className="barra-estado-texto">{p}</span>
+                {i < pasos.length - 1 && <div className={`barra-estado-linea ${i < pasoActual ? 'activo' : ''}`} />}
+              </div>
+            ))}
+          </div>
+        )
+      })()}
 
       {pedido && (
         <div className={`banner-estado banner-${pedido.estado}`}>
@@ -796,7 +813,7 @@ export default function App() {
           <nav className="categorias">
             {categorias.map((c) => (
               <button key={c.id} className={`cat-btn ${categoriaActiva === c.id ? 'activa' : ''}`} onClick={() => setCategoriaActiva(c.id)}>
-                {c.icono ? `${c.icono} ` : ''}{c.nombre}
+                {c.icono ? `${c.icono} ` : ''}{c.nombre} <span className="cat-btn-contador">({productos.filter((p) => p.categoria_id === c.id).length})</span>
               </button>
             ))}
           </nav>
@@ -1053,11 +1070,12 @@ export default function App() {
             <h3>✋💬 Habla con tu mesero</h3>
             <div className="contacto-rapido">
               {SOLICITUD_OPCIONES.map((o) => (
-                <button key={o.tipo} onClick={() => enviarSolicitud(o.tipo)}>{o.label}</button>
+                <button key={o.tipo} onClick={() => (o.tipo === 'otro' ? setMostrarTextoLibre(true) : enviarSolicitud(o.tipo))}>{o.label}</button>
               ))}
             </div>
+            {(mensajesChat.length > 0 || mostrarTextoLibre) && (
             <div className="chat-mensajes">
-              {mensajesChat.length === 0 && <p className="vacio">O escríbele directamente aquí abajo.</p>}
+              {mensajesChat.length === 0 && <p className="vacio">Escríbele directamente aquí abajo.</p>}
               {mensajesChat.map((m) => (
                 <div key={m.id} className={`chat-burbuja ${m.de === 'cliente' ? 'chat-propia' : 'chat-otra'}`}>
                   <div className="chat-autor">{m.de === 'cliente' ? 'Tú' : (m.nombre || m.de)}</div>
@@ -1071,12 +1089,14 @@ export default function App() {
                 </div>
               ))}
             </div>
+            )}
             {editandoMensajeId && (
               <div className="chat-editando-aviso">
                 ✏️ Editando mensaje
                 <button onClick={() => { setEditandoMensajeId(null); setTextoChat('') }}>Cancelar</button>
               </div>
             )}
+            {(mensajesChat.length > 0 || mostrarTextoLibre) && (
             <div className="chat-entrada">
               <input
                 type="text"
@@ -1088,6 +1108,7 @@ export default function App() {
               />
               <button onClick={enviarMensajeChat}>{editandoMensajeId ? 'Guardar' : 'Enviar'}</button>
             </div>
+            )}
             <button className="btn-secundario" onClick={() => setModalChat(false)}>Cerrar</button>
           </div>
         </div>
