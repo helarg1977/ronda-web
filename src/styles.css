@@ -223,7 +223,6 @@ body {
   color: #17131f;
   font-weight: 800;
   border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent), 0 0 18px 2px rgba(217, 142, 63, 0.55);
 }
 
 /* --- Productos --- */
@@ -282,7 +281,7 @@ body {
   display: flex; align-items: center; justify-content: center;
   border: 1px solid var(--card-borde);
 }
-.qty-btn-add { background: var(--accent); color: #17131f; border-color: var(--accent); box-shadow: 0 0 14px 1px rgba(217, 142, 63, 0.5); transition: background 0.15s ease, transform 0.15s ease; }
+.qty-btn-add { background: var(--accent); color: #17131f; border-color: var(--accent); transition: background 0.15s ease, transform 0.15s ease; }
 .qty-btn-add:active { transform: scale(0.88); }
 .qty-btn-confirmado {
   background: var(--exito) !important; border-color: var(--exito) !important;
@@ -566,3 +565,30 @@ body {
   35%  { transform: scale(1.12); }
   100% { transform: scale(1); }
 }
+
+.barra-estado-pedido {
+  display: flex; align-items: flex-start; margin: 12px 16px 0; padding: 0 4px;
+}
+.barra-estado-paso {
+  flex: 1; display: flex; flex-direction: column; align-items: center; position: relative;
+}
+.barra-estado-punto {
+  width: 12px; height: 12px; border-radius: 50%; background: var(--card-borde);
+  border: 2px solid var(--card-borde); z-index: 1;
+}
+.barra-estado-paso.activo .barra-estado-punto {
+  background: var(--accent); border-color: var(--accent);
+}
+.barra-estado-paso.actual .barra-estado-punto {
+  box-shadow: 0 0 0 4px rgba(217, 142, 63, 0.3);
+}
+.barra-estado-texto {
+  font-size: 10px; color: var(--text-dim); margin-top: 4px; text-align: center; font-weight: 600;
+}
+.barra-estado-paso.activo .barra-estado-texto { color: var(--text); }
+.barra-estado-linea {
+  position: absolute; top: 5px; left: 50%; width: 100%; height: 2px; background: var(--card-borde); z-index: 0;
+}
+.barra-estado-linea.activo { background: var(--accent); }
+
+.cat-btn-contador { font-size: 13px; opacity: 0.65; font-weight: 600; }
