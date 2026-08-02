@@ -302,7 +302,7 @@ export default function App() {
     if (!m) return
     const { data } = await supabase
       .from('pedidos').select('total')
-      .eq('mesa_id', m.id).eq('sesion_id', m.sesion_actual).neq('estado', 'cancelado')
+      .eq('bar_id', m.bar_id).eq('sesion_id', m.sesion_actual).neq('estado', 'cancelado')
     setTotalVisita((data || []).reduce((s, p) => s + Number(p.total), 0))
   }
 
@@ -734,8 +734,8 @@ export default function App() {
     if (!mesa) return
     setCargandoCuenta(true)
     const { data: pedidosData } = await supabase
-      .from('pedidos').select('id, estado, total, created_at')
-      .eq('mesa_id', mesa.id).eq('sesion_id', mesa.sesion_actual).neq('estado', 'cancelado')
+      .from('pedidos').select('id, estado, total, created_at, mesa_id, mesas(numero)')
+      .eq('bar_id', mesa.bar_id).eq('sesion_id', mesa.sesion_actual).neq('estado', 'cancelado')
       .order('created_at', { ascending: true })
 
     const ids = (pedidosData || []).map((p) => p.id)
@@ -963,6 +963,7 @@ export default function App() {
                   <div className="cuenta-fila cuenta-fila-titulo">
                     <span className="cuenta-fila-hora">
                       {new Date(p.created_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                      {p.mesa_id !== mesa.id && <span className="chip-estado">Mesa {p.mesas?.numero}</span>}
                       <span className={`chip-estado chip-estado-${p.estado}`}>
                         {p.estado === 'entregado' ? '✔ Entregado' : p.estado === 'cancelado' ? '✖ Cancelado' : (ESTADO_LABEL[p.estado] || p.estado)}
                       </span>
