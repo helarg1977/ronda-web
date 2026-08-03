@@ -181,7 +181,7 @@ export default function App() {
 
       if (!mesaData.sesion_iniciada_en) {
         const ahoraIso = new Date().toISOString()
-        await supabase.from('mesas').update({ sesion_iniciada_en: ahoraIso }).eq('id', mesaData.id).is('sesion_iniciada_en', null)
+        await supabase.rpc('marcar_inicio_sesion_mesa', { p_mesa_id: mesaData.id })
         mesaData.sesion_iniciada_en = ahoraIso
       }
 
