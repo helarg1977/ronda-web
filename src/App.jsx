@@ -10,7 +10,7 @@ const METODOS_PAGO = [
   { id: 'nequi', label: '📱 Nequi', llaveField: 'llave_nequi', esquemaApp: 'nequi://' },
   { id: 'daviplata', label: '📱 Daviplata', llaveField: 'llave_daviplata', esquemaApp: 'daviplata://' },
   { id: 'bre_b', label: '📱 Bre-B', llaveField: 'llave_bre_b' },
-  { id: 'mixto', label: '🔀 Parte efectivo, parte transferencia' },
+  { id: 'mixto', label: '🔀 Parte efectivo, parte transferencia', ayuda: 'Tú dices cuánto pagas en efectivo, el resto se calcula solo' },
 ]
 const ESTADO_LABEL = {
   pendiente: 'El bar ya vio tu pedido',
@@ -1028,7 +1028,10 @@ export default function App() {
             <p className="pago-titulo">¿Cómo vas a pagar?</p>
             <div className="pago-metodos">
               {METODOS_PAGO.filter((m) => m.id === 'efectivo' || (m.id === 'mixto' && ['llave_nequi','llave_daviplata','llave_bre_b'].some((k) => bar[k])) || bar[m.llaveField]).map((m) => (
-                <button key={m.id} className={`pago-btn ${m.id === 'mixto' ? 'pago-btn-mixto' : ''} ${metodoPagoCuenta === m.id ? 'activo' : ''}`} onClick={() => setMetodoPagoCuenta(m.id)}>{m.label}</button>
+                <button key={m.id} className={`pago-btn ${m.id === 'mixto' ? 'pago-btn-mixto' : ''} ${metodoPagoCuenta === m.id ? 'activo' : ''}`} onClick={() => setMetodoPagoCuenta(m.id)}>
+                  {m.label}
+                  {m.ayuda && <span className="pago-btn-ayuda">{m.ayuda}</span>}
+                </button>
               ))}
             </div>
             {metodoPagoCuenta === 'mixto' && (
@@ -1109,7 +1112,10 @@ export default function App() {
                 <p className="pago-titulo">¿Cómo vas a pagar?</p>
                 <div className="pago-metodos">
                   {METODOS_PAGO.filter((m) => m.id === 'efectivo' || (m.id === 'mixto' && ['llave_nequi','llave_daviplata','llave_bre_b'].some((k) => bar[k])) || bar[m.llaveField]).map((m) => (
-                    <button key={m.id} className={`pago-btn ${m.id === 'mixto' ? 'pago-btn-mixto' : ''} ${metodoPago === m.id ? 'activo' : ''}`} onClick={() => setMetodoPago(m.id)}>{m.label}</button>
+                    <button key={m.id} className={`pago-btn ${m.id === 'mixto' ? 'pago-btn-mixto' : ''} ${metodoPago === m.id ? 'activo' : ''}`} onClick={() => setMetodoPago(m.id)}>
+                      {m.label}
+                      {m.ayuda && <span className="pago-btn-ayuda">{m.ayuda}</span>}
+                    </button>
                   ))}
                 </div>
                 {metodoPago === 'mixto' && (
