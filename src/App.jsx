@@ -465,16 +465,21 @@ export default function App() {
   async function cancelarPedido() {
     if (!pedido || pedido.estado !== 'pendiente') return
     if (!window.confirm('¿Cancelar este pedido? No se puede deshacer.')) return
-    const { error: errorBorrarPago } = await supabase.from('pagos').delete().eq('pedido_id', pedido.id)
+    const { data: pagoBorrado, error: errorBorrarPago } = await supabase.from('pagos').delete().eq('pedido_id', pedido.id).select()
     if (errorBorrarPago) {
       mostrarToast('No se pudo cancelar del todo: ' + errorBorrarPago.message)
       return
+    }
+    if (!pagoBorrado || pagoBorrado.length === 0) {
+      mostrarToast('⚠️ El pedido se canceló, pero el pago no se pudo borrar (falta permiso en la base de datos). Avísale al bar.')
     }
     await supabase.from('pedidos').update({ estado: 'cancelado' }).eq('id', pedido.id)
     localStorage.removeItem(storageKey(mesa.id))
     setPedido(null)
     setCarrito({})
-    mostrarToast('Pedido cancelado')
+    if (pagoBorrado && pagoBorrado.length > 0) {
+      mostrarToast('Pedido cancelado')
+    }
     refrescarTotalVisita()
     refrescarHistorial()
   }
