@@ -506,7 +506,7 @@ export default function App() {
       const { data: pagoExistente } = await supabase
         .from('pagos').select('id, confirmado').in('pedido_id', idsDeLaCuenta).eq('confirmado', false).limit(1).maybeSingle()
       if (pagoExistente) {
-        mostrarToast('Ya reportaste este pago — el bar todavía no lo confirma. Espera un momento o pregúntale al mesero.')
+        window.alert('⚠️ Ya habías reportado un pago para esta cuenta y el bar todavía no lo confirma.\n\nPídele al mesero o al dueño que lo revise antes de intentar pagar de nuevo.')
         setModalPagarCuenta(false)
         return
       }
