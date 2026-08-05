@@ -511,12 +511,13 @@ export default function App() {
         return
       }
       const ultimoPedidoId = cuentaPedidos[cuentaPedidos.length - 1].id
-      await supabase.from('pagos').insert({
+      const { error: errorPago1 } = await supabase.from('pagos').insert({
         pedido_id: ultimoPedidoId, metodo: metodoPagoCuenta, monto: totalCuenta,
         comprobante_url: comprobanteCuentaUrl || null, confirmado: false,
         monto_efectivo: metodoPagoCuenta === 'mixto' ? Number(montoEfectivoMixtoCuenta || 0) : null,
         monto_transferencia: metodoPagoCuenta === 'mixto' ? Math.max(0, totalCuenta - Number(montoEfectivoMixtoCuenta || 0)) : null,
       })
+      if (errorPago1) throw errorPago1
       await supabase.from('solicitudes').insert({ bar_id: bar.id, mesa_id: mesa.id, tipo: 'cuenta' })
       mostrarToast('¡Listo! Ya avisamos que quieres pagar y cerrar la cuenta 🙌')
       setModalPagarCuenta(false)
@@ -581,11 +582,12 @@ export default function App() {
         })
         await supabase.from('pedido_items').insert(items)
         if (!mesa.cuenta_abierta) {
-          await supabase.from('pagos').insert({
+          const { error: errorPago2 } = await supabase.from('pagos').insert({
             pedido_id: nuevoPedido.id, metodo: metodoPago, monto: total, comprobante_url: comprobanteUrl || null, confirmado: false,
             monto_efectivo: metodoPago === 'mixto' ? Number(montoEfectivoMixto || 0) : null,
             monto_transferencia: metodoPago === 'mixto' ? Math.max(0, total - Number(montoEfectivoMixto || 0)) : null,
           })
+          if (errorPago2) throw errorPago2
         }
 
         localStorage.setItem(storageKey(mesa.id), nuevoPedido.id)
@@ -632,7 +634,8 @@ export default function App() {
         return { pedido_id: nuevoPedido.id, producto_id: id, cantidad: cant, precio_unitario: p.precio }
       })
       await supabase.from('pedido_items').insert(items)
-      await supabase.from('pagos').insert({ pedido_id: nuevoPedido.id, metodo: 'efectivo', monto: total, confirmado: false })
+      const { error: errorPago3 } = await supabase.from('pagos').insert({ pedido_id: nuevoPedido.id, metodo: 'efectivo', monto: total, confirmado: false })
+      if (errorPago3) throw errorPago3
       localStorage.setItem(storageKey(mesa.id), nuevoPedido.id)
       setPedido(nuevoPedido); setPidioCuenta(false); localStorage.removeItem(`ronda_pidio_cuenta_${mesa.id}`)
       setCalificacion(0)
