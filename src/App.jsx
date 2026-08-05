@@ -465,7 +465,11 @@ export default function App() {
   async function cancelarPedido() {
     if (!pedido || pedido.estado !== 'pendiente') return
     if (!window.confirm('¿Cancelar este pedido? No se puede deshacer.')) return
-    await supabase.from('pagos').delete().eq('pedido_id', pedido.id)
+    const { error: errorBorrarPago } = await supabase.from('pagos').delete().eq('pedido_id', pedido.id)
+    if (errorBorrarPago) {
+      mostrarToast('No se pudo cancelar del todo: ' + errorBorrarPago.message)
+      return
+    }
     await supabase.from('pedidos').update({ estado: 'cancelado' }).eq('id', pedido.id)
     localStorage.removeItem(storageKey(mesa.id))
     setPedido(null)
