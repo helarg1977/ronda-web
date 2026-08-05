@@ -605,7 +605,7 @@ export default function App() {
       refrescarHistorial()
       mostrarToast('✅ ¡Pedido enviado! El bar ya lo puede ver')
     } catch (e) {
-      mostrarToast('No pudimos enviar tu pedido. Intenta de nuevo.')
+      mostrarToast('No pudimos enviar tu pedido: ' + (e?.message || 'error desconocido'))
     } finally {
       setEnviando(false)
     }
