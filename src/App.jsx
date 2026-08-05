@@ -1028,16 +1028,17 @@ export default function App() {
             <p className="pago-titulo">¿Cómo vas a pagar?</p>
             <div className="pago-metodos">
               {METODOS_PAGO.filter((m) => m.id === 'efectivo' || (m.id === 'mixto' && ['llave_nequi','llave_daviplata','llave_bre_b'].some((k) => bar[k])) || bar[m.llaveField]).map((m) => (
-                <button key={m.id} className={`pago-btn ${metodoPagoCuenta === m.id ? 'activo' : ''}`} onClick={() => setMetodoPagoCuenta(m.id)}>{m.label}</button>
+                <button key={m.id} className={`pago-btn ${m.id === 'mixto' ? 'pago-btn-mixto' : ''} ${metodoPagoCuenta === m.id ? 'activo' : ''}`} onClick={() => setMetodoPagoCuenta(m.id)}>{m.label}</button>
               ))}
             </div>
             {metodoPagoCuenta === 'mixto' && (
               <div className="pago-detalle">
                 <p className="pago-numero">¿Cuánto vas a pagar en efectivo?</p>
                 <input
-                  type="number" className="input-telefono" value={montoEfectivoMixtoCuenta}
-                  onChange={(e) => setMontoEfectivoMixtoCuenta(e.target.value)}
-                  placeholder="Ej: 20000" min="0" max={cuentaPedidos.reduce((s, p) => s + Number(p.total), 0)}
+                  type="text" inputMode="numeric" className="input-telefono"
+                  value={montoEfectivoMixtoCuenta ? Number(montoEfectivoMixtoCuenta).toLocaleString('es-CO') : ''}
+                  onChange={(e) => setMontoEfectivoMixtoCuenta(e.target.value.replace(/\D/g, ''))}
+                  placeholder="Ej: 20.000"
                 />
                 <p className="pago-numero" style={{ marginTop: 10 }}>
                   El resto ({money(Math.max(0, cuentaPedidos.reduce((s, p) => s + Number(p.total), 0) - Number(montoEfectivoMixtoCuenta || 0)))}) lo transfieres a cualquiera de nuestros medios:
@@ -1108,16 +1109,17 @@ export default function App() {
                 <p className="pago-titulo">¿Cómo vas a pagar?</p>
                 <div className="pago-metodos">
                   {METODOS_PAGO.filter((m) => m.id === 'efectivo' || (m.id === 'mixto' && ['llave_nequi','llave_daviplata','llave_bre_b'].some((k) => bar[k])) || bar[m.llaveField]).map((m) => (
-                    <button key={m.id} className={`pago-btn ${metodoPago === m.id ? 'activo' : ''}`} onClick={() => setMetodoPago(m.id)}>{m.label}</button>
+                    <button key={m.id} className={`pago-btn ${m.id === 'mixto' ? 'pago-btn-mixto' : ''} ${metodoPago === m.id ? 'activo' : ''}`} onClick={() => setMetodoPago(m.id)}>{m.label}</button>
                   ))}
                 </div>
                 {metodoPago === 'mixto' && (
                   <div className="pago-detalle">
                     <p className="pago-numero">¿Cuánto vas a pagar en efectivo?</p>
                     <input
-                      type="number" className="input-telefono" value={montoEfectivoMixto}
-                      onChange={(e) => setMontoEfectivoMixto(e.target.value)}
-                      placeholder="Ej: 10000" min="0" max={totalCarrito}
+                      type="text" inputMode="numeric" className="input-telefono"
+                      value={montoEfectivoMixto ? Number(montoEfectivoMixto).toLocaleString('es-CO') : ''}
+                      onChange={(e) => setMontoEfectivoMixto(e.target.value.replace(/\D/g, ''))}
+                      placeholder="Ej: 10.000"
                     />
                     <p className="pago-numero" style={{ marginTop: 10 }}>
                       El resto ({money(Math.max(0, totalCarrito - Number(montoEfectivoMixto || 0)))}) lo transfieres a cualquiera de nuestros medios:
