@@ -791,7 +791,10 @@ export default function App() {
 
   return (
     <div className="app">
-      <header className="header" style={bar?.foto_portada ? { backgroundImage: `linear-gradient(rgba(15,13,22,0.75), rgba(15,13,22,0.96)), url(${bar.foto_portada})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
+      {bar?.foto_portada && (
+        <img src={bar.foto_portada} alt="" className="portada-limpia" />
+      )}
+      <header className="header">
         <div className="header-fila-logo">
           {bar?.logo_url && <img src={bar.logo_url} alt="" className="header-logo" />}
           <div className="header-title">{bar?.nombre}</div>
