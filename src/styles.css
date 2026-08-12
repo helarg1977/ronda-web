@@ -366,6 +366,7 @@ body {
   box-shadow: 0 10px 26px rgba(217, 142, 63, 0.4);
 }
 .cta-flotante:disabled { opacity: 0.6; }
+.cta-monto { font-family: var(--font-body); font-weight: 700; }
 
 /* --- Carrito y seguimiento --- */
 .carrito-view, .seguimiento-view { padding: 22px 18px; flex: 1; }
@@ -389,7 +390,7 @@ body {
 .pago-btn.activo { background: var(--accent); color: #17131f; border-color: var(--accent); }
 .pago-btn-mixto { border-color: #4a90d9; border-width: 2px; font-weight: 700; flex-basis: 100%; padding: 14px; display: flex; flex-direction: column; gap: 4px; }
 .pago-btn-mixto.activo { background: #4a90d9; border-color: #4a90d9; }
-.pago-btn-ayuda { font-size: 11px; font-weight: 400; opacity: 0.75; }
+.pago-btn-ayuda { font-size: 13px; font-weight: 400; opacity: 0.85; }
 .pago-detalle { background: var(--card); border: 1px solid var(--card-borde); border-radius: 14px; padding: 16px; margin-top: 12px; }
 .pago-numero { font-size: 15px; margin: 0 0 12px; }
 .btn-abrir-app {
