@@ -175,11 +175,11 @@ body {
 .banner-botones { display: flex; flex-direction: column; gap: 6px; }
 .banner-editar {
   background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent);
-  border-radius: 10px; padding: 8px 12px; font-size: 13px; font-weight: 700; white-space: nowrap;
+  border-radius: 12px; padding: 13px 16px; font-size: 14px; font-weight: 700; white-space: nowrap; min-height: 44px;
 }
 .banner-cancelar {
   background: transparent; color: var(--danger); border: 1px solid var(--danger);
-  border-radius: 10px; padding: 8px 12px; font-size: 13px; font-weight: 700; white-space: nowrap;
+  border-radius: 12px; padding: 13px 16px; font-size: 14px; font-weight: 700; white-space: nowrap; min-height: 44px;
 }
 .banner-entregado { border-color: var(--exito); }
 
