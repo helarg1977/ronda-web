@@ -336,7 +336,7 @@ export default function App() {
     if (cats && cats.length) setCategoriaActiva(cats[0].id)
 
     const { data: itemsVendidos } = await supabase
-      .from('pedido_items').select('producto_id, cantidad, pedidos!inner(bar_id)').eq('pedidos.bar_id', barId)
+      .from('pedido_items').select('producto_id, cantidad, pedidos!inner(bar_id, estado)').eq('pedidos.bar_id', barId).neq('pedidos.estado', 'cancelado')
     if (itemsVendidos && itemsVendidos.length > 0) {
       const conteo = {}
       itemsVendidos.forEach((it) => { conteo[it.producto_id] = (conteo[it.producto_id] || 0) + it.cantidad })
@@ -356,7 +356,13 @@ export default function App() {
 
   function abrirAppPago(esquema) {
     if (!esquema) return
+    const yaEstabaOculto = document.hidden
     window.location.href = esquema
+    setTimeout(() => {
+      if (!document.hidden && !yaEstabaOculto) {
+        mostrarToast('No se pudo abrir la app automáticamente — ábrela tú mismo y transfiere al número o llave que te mostramos arriba.')
+      }
+    }, 1500)
   }
 
   function guardarNombre(valor) {
@@ -549,7 +555,8 @@ export default function App() {
     if (!file) return
     setSubiendoComprobanteCuenta(true)
     try {
-      const nombreArchivo = `${mesa.id}_cuenta_${Date.now()}_${file.name}`
+      const extension = (file.name.split('.').pop() || 'jpg').replace(/[^a-zA-Z0-9]/g, '').slice(0, 5) || 'jpg'
+      const nombreArchivo = `${mesa.id}_cuenta_${Date.now()}.${extension}`
       const { error } = await supabase.storage.from('comprobantes').upload(nombreArchivo, file)
       if (error) throw error
       const { data } = supabase.storage.from('comprobantes').getPublicUrl(nombreArchivo)
@@ -601,7 +608,8 @@ export default function App() {
     if (!file) return
     setSubiendoComprobante(true)
     try {
-      const nombreArchivo = `${mesa.id}_${Date.now()}_${file.name}`
+      const extension = (file.name.split('.').pop() || 'jpg').replace(/[^a-zA-Z0-9]/g, '').slice(0, 5) || 'jpg'
+      const nombreArchivo = `${mesa.id}_${Date.now()}.${extension}`
       const { error } = await supabase.storage.from('comprobantes').upload(nombreArchivo, file)
       if (error) throw error
       const { data } = supabase.storage.from('comprobantes').getPublicUrl(nombreArchivo)
