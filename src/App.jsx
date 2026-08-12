@@ -610,6 +610,15 @@ export default function App() {
       }, 0)
 
       if (editando && pedido) {
+        // Antes de aplicar la edición, confirmar que el mesero todavía no empezó a atenderlo
+        const { data: pedidoActual } = await supabase.from('pedidos').select('estado').eq('id', pedido.id).single()
+        if (!pedidoActual || pedidoActual.estado !== 'pendiente') {
+          mostrarToast('⚠️ El bar ya empezó a preparar este pedido — ya no se puede editar.')
+          setEditando(false)
+          setModalCarrito(false)
+          setEnviando(false)
+          return
+        }
         const { error: errorBorrarItems } = await supabase.from('pedido_items').delete().eq('pedido_id', pedido.id)
         if (errorBorrarItems) throw errorBorrarItems
         const items = entries.map(([id, cant]) => {
