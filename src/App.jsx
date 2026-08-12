@@ -52,6 +52,7 @@ export default function App() {
   const [mesa, setMesa] = useState(null)
   const [bar, setBar] = useState(null)
   const [categorias, setCategorias] = useState([])
+  const [errorMenu, setErrorMenu] = useState(false)
   const [productos, setProductos] = useState([])
   const [categoriaActiva, setCategoriaActiva] = useState(null)
   const [carrito, setCarrito] = useState({}) // { productoId: cantidad }
@@ -325,14 +326,15 @@ export default function App() {
   }, [mesa])
 
   async function cargarMenu(barId) {
-    const { data: cats } = await supabase
+    const { data: cats, error: errorCats } = await supabase
       .from('categorias').select('id, nombre, icono, orden')
       .eq('bar_id', barId).order('orden', { ascending: true })
-    const { data: prods } = await supabase
+    const { data: prods, error: errorProds } = await supabase
       .from('productos')
       .select('id, categoria_id, nombre, descripcion, precio, foto_url, disponible, orden, producto_sugerido_id')
       .eq('bar_id', barId).eq('disponible', true).order('orden', { ascending: true })
 
+    setErrorMenu(!!errorCats || !!errorProds)
     setCategorias(cats || [])
     setProductos(prods || [])
     if (cats && cats.length) setCategoriaActiva(cats[0].id)
@@ -1047,7 +1049,13 @@ export default function App() {
             </div>
           </div>
         ))}
-        {productosVisibles.length === 0 && <p className="vacio">No hay productos en esta categoría.</p>}
+        {productosVisibles.length === 0 && errorMenu && (
+          <div className="vacio">
+            <p>No pudimos cargar el menú — revisa tu conexión.</p>
+            <button className="btn-secundario" onClick={() => cargarMenu(bar.id)}>Reintentar</button>
+          </div>
+        )}
+        {productosVisibles.length === 0 && !errorMenu && <p className="vacio">No hay productos en esta categoría.</p>}
       </main>
 
       <div id="capaFlotante">
