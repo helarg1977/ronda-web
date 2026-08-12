@@ -575,11 +575,14 @@ export default function App() {
         })
         const { error: errorItems } = await supabase.from('pedido_items').insert(items)
         if (errorItems) throw errorItems
-        await supabase.from('pedidos').update({ total, cliente_nombre: nombreCliente || null }).eq('id', pedido.id)
+        // El total ya lo recalculó y guardó la base de datos sola (trigger) — solo actualizamos el nombre
+        await supabase.from('pedidos').update({ cliente_nombre: nombreCliente || null }).eq('id', pedido.id)
+        const { data: pedidoActualizado } = await supabase.from('pedidos').select('*').eq('id', pedido.id).single()
+        const totalReal = pedidoActualizado ? Number(pedidoActualizado.total) : total
         if (!mesa.cuenta_abierta) {
-          await supabase.from('pagos').update({ metodo: metodoPago, monto: total, comprobante_url: comprobanteUrl || null }).eq('pedido_id', pedido.id)
+          await supabase.from('pagos').update({ metodo: metodoPago, monto: totalReal, comprobante_url: comprobanteUrl || null }).eq('pedido_id', pedido.id)
         }
-        setPedido({ ...pedido, total })
+        setPedido(pedidoActualizado || { ...pedido, total: totalReal })
         mostrarToast('Pedido actualizado ✏️')
       } else {
         const { data: nuevoPedido, error: pedidoErr } = await supabase
@@ -597,11 +600,16 @@ export default function App() {
           await supabase.from('pedidos').update({ estado: 'cancelado' }).eq('id', nuevoPedido.id)
           throw errorItems
         }
+
+        // El total real lo calcula la base de datos (nunca el que mandó este celular) — lo traemos de vuelta
+        const { data: pedidoConfirmado } = await supabase.from('pedidos').select('*').eq('id', nuevoPedido.id).single()
+        const totalReal = pedidoConfirmado ? Number(pedidoConfirmado.total) : total
+
         if (!mesa.cuenta_abierta) {
           const { error: errorPago2 } = await supabase.from('pagos').insert({
-            pedido_id: nuevoPedido.id, metodo: metodoPago, monto: total, comprobante_url: comprobanteUrl || null, confirmado: false,
+            pedido_id: nuevoPedido.id, metodo: metodoPago, monto: totalReal, comprobante_url: comprobanteUrl || null, confirmado: false,
             monto_efectivo: metodoPago === 'mixto' ? Number(montoEfectivoMixto || 0) : null,
-            monto_transferencia: metodoPago === 'mixto' ? Math.max(0, total - Number(montoEfectivoMixto || 0)) : null,
+            monto_transferencia: metodoPago === 'mixto' ? Math.max(0, totalReal - Number(montoEfectivoMixto || 0)) : null,
           })
           if (errorPago2) throw errorPago2
         }
@@ -609,7 +617,7 @@ export default function App() {
         localStorage.setItem(storageKey(mesa.id), nuevoPedido.id)
         localStorage.setItem(ultimoPedidoKey(mesa.id), JSON.stringify(Object.fromEntries(entries)))
         setUltimoPedido(Object.fromEntries(entries))
-        setPedido(nuevoPedido); setPidioCuenta(false); localStorage.removeItem(`ronda_pidio_cuenta_${mesa.id}`)
+        setPedido(pedidoConfirmado || nuevoPedido); setPidioCuenta(false); localStorage.removeItem(`ronda_pidio_cuenta_${mesa.id}`)
         setCalificacion(0)
         setPropinaEnviada(false)
       }
