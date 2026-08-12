@@ -595,8 +595,13 @@ export default function App() {
   }
 
   async function confirmarPedido() {
+    if (enviando) return
     const entries = Object.entries(carrito).filter(([, cant]) => cant > 0)
     if (entries.length === 0) return
+    if (metodoPago !== 'efectivo' && !comprobanteUrl) {
+      mostrarToast('📎 Sube la foto del comprobante antes de enviar el pedido.')
+      return
+    }
     setEnviando(true)
     try {
       const total = entries.reduce((sum, [id, cant]) => {
@@ -714,11 +719,11 @@ export default function App() {
   }
 
   async function enviarPropina(pct) {
-    if (!pedido) return
+    if (!pedido || propinaEnviada) return
+    setPropinaEnviada(true)
     const monto = Math.round(pedido.total * pct)
     await supabase.from('propinas').insert({ pedido_id: pedido.id, mesero_id: pedido.mesero_id || null, monto, calificacion: calificacion || null })
     mostrarToast(`¡Gracias! Propina de ${money(monto)} registrada 🙌`)
-    setPropinaEnviada(true)
     setTimeout(() => {
       localStorage.removeItem(storageKey(mesa.id))
       localStorage.setItem(`ronda_ultima_entrega_${mesa.id}`, String(Date.now()))
@@ -938,9 +943,9 @@ export default function App() {
           </div>
           <p className="propina-titulo">¿Dejamos propina?</p>
           <div className="propina-botones">
-            <button onClick={() => enviarPropina(0.10)}>10%</button>
-            <button onClick={() => enviarPropina(0.15)}>15%</button>
-            <button onClick={() => enviarPropina(0.20)}>20%</button>
+            <button disabled={propinaEnviada} onClick={() => enviarPropina(0.10)}>10% · {money(Math.round((pedido?.total || 0) * 0.10))}</button>
+            <button disabled={propinaEnviada} onClick={() => enviarPropina(0.15)}>15% · {money(Math.round((pedido?.total || 0) * 0.15))}</button>
+            <button disabled={propinaEnviada} onClick={() => enviarPropina(0.20)}>20% · {money(Math.round((pedido?.total || 0) * 0.20))}</button>
           </div>
           <button className="btn-secundario" onClick={terminarSinPropina}>No, gracias</button>
         </div>
