@@ -93,6 +93,7 @@ export default function App() {
   const [topProductoId, setTopProductoId] = useState(null)
   const [historialAbierto, setHistorialAbierto] = useState(true)
   const [fotoAmpliada, setFotoAmpliada] = useState(null)
+  const [fotosConError, setFotosConError] = useState(new Set())
   const [modalDividir, setModalDividir] = useState(false)
   const [modalPagarCuenta, setModalPagarCuenta] = useState(false)
   const [metodoPagoCuenta, setMetodoPagoCuenta] = useState('efectivo')
@@ -111,7 +112,8 @@ export default function App() {
 
   const mostrarToast = useCallback((msg) => {
     setToast(msg)
-    setTimeout(() => setToast(''), 2500)
+    const duracion = Math.min(7000, Math.max(3000, msg.length * 60))
+    setTimeout(() => setToast(''), duracion)
   }, [])
 
   // --- Sistema de zona flotante: mide #capaFlotante y reserva el espacio automáticamente ---
@@ -1009,8 +1011,12 @@ export default function App() {
       <main className="productos">
         {productosVisibles.map((p) => (
           <div key={p.id} className={`producto-card ${carrito[p.id] > 0 ? 'en-carrito' : ''}`}>
-            {p.foto_url ? (
-              <img src={p.foto_url} alt={p.nombre} className="producto-foto" onClick={() => setFotoAmpliada(p.foto_url)} />
+            {p.foto_url && !fotosConError.has(p.id) ? (
+              <img
+                src={p.foto_url} alt={p.nombre} className="producto-foto"
+                onClick={() => setFotoAmpliada(p.foto_url)}
+                onError={() => setFotosConError((s) => new Set(s).add(p.id))}
+              />
             ) : (
               <div className="producto-icono">{categorias.find((c) => c.id === p.categoria_id)?.icono || '🍸'}</div>
             )}
@@ -1360,7 +1366,7 @@ export default function App() {
         </div>
       )}
 
-      {toast && <div className="toast">{toast}</div>}
+      {toast && <div className="toast" onClick={() => setToast('')}>{toast}</div>}
 
       {borradorEncontrado && (
         <div className="modal-overlay">
