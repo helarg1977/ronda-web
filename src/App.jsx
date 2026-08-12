@@ -1109,7 +1109,11 @@ export default function App() {
                 <input
                   type="text" inputMode="numeric" className="input-telefono"
                   value={montoEfectivoMixtoCuenta ? Number(montoEfectivoMixtoCuenta).toLocaleString('es-CO') : ''}
-                  onChange={(e) => setMontoEfectivoMixtoCuenta(e.target.value.replace(/\D/g, ''))}
+                  onChange={(e) => {
+                    const total = cuentaPedidos.reduce((s, p) => s + Number(p.total), 0)
+                    const valor = Number(e.target.value.replace(/\D/g, '') || 0)
+                    setMontoEfectivoMixtoCuenta(String(Math.min(valor, total)))
+                  }}
                   placeholder="Ej: 20.000"
                 />
                 <p className="pago-numero" style={{ marginTop: 10 }}>
@@ -1193,7 +1197,10 @@ export default function App() {
                     <input
                       type="text" inputMode="numeric" className="input-telefono"
                       value={montoEfectivoMixto ? Number(montoEfectivoMixto).toLocaleString('es-CO') : ''}
-                      onChange={(e) => setMontoEfectivoMixto(e.target.value.replace(/\D/g, ''))}
+                      onChange={(e) => {
+                        const valor = Number(e.target.value.replace(/\D/g, '') || 0)
+                        setMontoEfectivoMixto(String(Math.min(valor, totalCarrito)))
+                      }}
                       placeholder="Ej: 10.000"
                     />
                     <p className="pago-numero" style={{ marginTop: 10 }}>
