@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react'
 import { supabase } from './supabaseClient'
+import { mensajeAmigable } from './erroresAmigables'
 
 const ESTADOS = ['pendiente', 'confirmado', 'preparando', 'en_camino', 'entregado']
 const MINUTOS_RONDA_INTELIGENTE = 30 // a los cuantos minutos sin pedir se pregunta sola "¿otra ronda?"
@@ -703,7 +704,7 @@ export default function App() {
       refrescarHistorial()
       mostrarToast('✅ ¡Pedido enviado! El bar ya lo puede ver')
     } catch (e) {
-      mostrarToast('No pudimos enviar tu pedido: ' + (e?.message || 'error desconocido'))
+      mostrarToast('No pudimos enviar tu pedido. ' + mensajeAmigable(e, 'Intenta de nuevo en un momento.'))
     } finally {
       setEnviando(false)
     }
@@ -770,7 +771,7 @@ export default function App() {
 
   async function enviarSolicitud(tipo) {
     const { error } = await supabase.from('solicitudes').insert({ bar_id: bar.id, mesa_id: mesa.id, tipo })
-    mostrarToast(error ? `Error: ${error.message}` : 'Ya avisamos al mesero 👍')
+    mostrarToast(error ? `No se pudo avisar: ${mensajeAmigable(error, 'Intenta de nuevo.')}` : 'Ya avisamos al mesero 👍')
     if (tipo === 'cuenta' && !error) {
       setPidioCuenta(true)
       localStorage.setItem(`ronda_pidio_cuenta_${mesa.id}`, '1')
