@@ -1062,7 +1062,7 @@ export default function App() {
         {totalItems > 0 && !editando && (
           <button className="cta-flotante" onClick={abrirCarritoNuevo}>
             <span>{totalItems} producto{totalItems > 1 ? 's' : ''}</span>
-            <span>Revisar y enviar → {money(totalCarrito)}</span>
+            <span>Revisar y enviar → <span className="cta-monto">{money(totalCarrito)}</span></span>
           </button>
         )}
         {totalItems === 0 && !pedido && ultimoPedido && (
