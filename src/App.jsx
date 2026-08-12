@@ -81,6 +81,9 @@ export default function App() {
   const [cargandoCuenta, setCargandoCuenta] = useState(false)
 
   const [toast, setToast] = useState('')
+  const [confirmDialog, setConfirmDialog] = useState(null) // { titulo, mensaje, onConfirmar, textoConfirmar, destructivo }
+  const [alertaDialog, setAlertaDialog] = useState(null) // { titulo, mensaje }
+  const [borradorEncontrado, setBorradorEncontrado] = useState(null)
   const [ultimoPedido, setUltimoPedido] = useState(null)
   const [upsell, setUpsell] = useState(null)
   const [calificacion, setCalificacion] = useState(0)
@@ -133,20 +136,26 @@ export default function App() {
       if (Date.now() - borrador.guardadoEn > dosHoras) { localStorage.removeItem(borradorKey(mesa.id)); return }
       const hayAlgo = Object.values(borrador.carrito || {}).some((c) => c > 0)
       if (!hayAlgo) return
-      if (window.confirm('Tenías un pedido a medio armar antes de que se cortara — ¿lo retomamos donde ibas?')) {
-        setCarrito(borrador.carrito || {})
-        setMetodoPago(borrador.metodoPago || 'efectivo')
-        setComprobanteUrl(borrador.comprobanteUrl || null)
-        setMontoEfectivoMixto(borrador.montoEfectivoMixto || '')
-        setNombreCliente(borrador.nombreCliente || '')
-        setModalCarrito(true)
-      } else {
-        localStorage.removeItem(borradorKey(mesa.id))
-      }
+      setBorradorEncontrado(borrador)
     } catch (e) {
       localStorage.removeItem(borradorKey(mesa.id))
     }
   }, [mesa])
+
+  function retomarBorrador() {
+    setCarrito(borradorEncontrado.carrito || {})
+    setMetodoPago(borradorEncontrado.metodoPago || 'efectivo')
+    setComprobanteUrl(borradorEncontrado.comprobanteUrl || null)
+    setMontoEfectivoMixto(borradorEncontrado.montoEfectivoMixto || '')
+    setNombreCliente(borradorEncontrado.nombreCliente || '')
+    setModalCarrito(true)
+    setBorradorEncontrado(null)
+  }
+
+  function descartarBorrador() {
+    localStorage.removeItem(borradorKey(mesa.id))
+    setBorradorEncontrado(null)
+  }
 
   useEffect(() => {
     const capa = document.getElementById('capaFlotante')
@@ -500,9 +509,16 @@ export default function App() {
     setModalCarrito(true)
   }
 
-  async function cancelarPedido() {
+  function cancelarPedido() {
     if (!pedido || pedido.estado !== 'pendiente') return
-    if (!window.confirm('¿Cancelar este pedido? No se puede deshacer.')) return
+    setConfirmDialog({
+      titulo: '¿Cancelar este pedido?', mensaje: 'No se puede deshacer.', destructivo: true, textoConfirmar: 'Sí, cancelar',
+      onConfirmar: cancelarPedidoConfirmado,
+    })
+  }
+
+  async function cancelarPedidoConfirmado() {
+    setConfirmDialog(null)
     const { data: pagoBorrado, error: errorBorrarPago } = await supabase.from('pagos').delete().eq('pedido_id', pedido.id).select()
     if (errorBorrarPago) {
       mostrarToast('No se pudo cancelar del todo: ' + errorBorrarPago.message)
@@ -554,7 +570,10 @@ export default function App() {
       const { data: pagoExistente } = await supabase
         .from('pagos').select('id, confirmado').in('pedido_id', idsDeLaCuenta).eq('confirmado', false).limit(1).maybeSingle()
       if (pagoExistente) {
-        window.alert('⚠️ Ya habías reportado un pago para esta cuenta y el bar todavía no lo confirma.\n\nPídele al mesero o al dueño que lo revise antes de intentar pagar de nuevo.')
+        setAlertaDialog({
+          titulo: '⚠️ Ya habías reportado un pago',
+          mensaje: 'Para esta cuenta y el bar todavía no lo confirma. Pídele al mesero o al dueño que lo revise antes de intentar pagar de nuevo.',
+        })
         setModalPagarCuenta(false)
         return
       }
@@ -797,11 +816,16 @@ export default function App() {
     setTextoChat(m.texto)
   }
 
-  async function borrarMensajeChat(m) {
-    if (!window.confirm('¿Borrar este mensaje?')) return
-    await supabase.from('mensajes_chat').delete().eq('id', m.id)
-    setMensajesChat((lista) => lista.filter((x) => x.id !== m.id))
-    if (editandoMensajeId === m.id) { setEditandoMensajeId(null); setTextoChat('') }
+  function borrarMensajeChat(m) {
+    setConfirmDialog({
+      titulo: '¿Borrar este mensaje?', mensaje: '', destructivo: true, textoConfirmar: 'Borrar',
+      onConfirmar: async () => {
+        setConfirmDialog(null)
+        await supabase.from('mensajes_chat').delete().eq('id', m.id)
+        setMensajesChat((lista) => lista.filter((x) => x.id !== m.id))
+        if (editandoMensajeId === m.id) { setEditandoMensajeId(null); setTextoChat('') }
+      },
+    })
   }
 
   useEffect(() => {
@@ -1328,6 +1352,50 @@ export default function App() {
       )}
 
       {toast && <div className="toast">{toast}</div>}
+
+      {borradorEncontrado && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <h3>¿Retomamos tu pedido?</h3>
+            <p style={{ color: 'var(--text-dim)', lineHeight: 1.5 }}>
+              Tenías un pedido a medio armar antes de que se cortara — ¿lo retomamos donde ibas?
+            </p>
+            <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+              <button className="btn-secundario" onClick={descartarBorrador}>No, empezar de nuevo</button>
+              <button className="btn-primario" onClick={retomarBorrador}>Sí, retomarlo</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDialog && (
+        <div className="modal-overlay" onClick={() => setConfirmDialog(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>{confirmDialog.titulo}</h3>
+            {confirmDialog.mensaje && <p style={{ color: 'var(--text-dim)', lineHeight: 1.5 }}>{confirmDialog.mensaje}</p>}
+            <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+              <button className="btn-secundario" onClick={() => setConfirmDialog(null)}>Cancelar</button>
+              <button
+                className="btn-secundario"
+                style={confirmDialog.destructivo ? { color: '#e05c5c', borderColor: '#e05c5c' } : {}}
+                onClick={confirmDialog.onConfirmar}
+              >
+                {confirmDialog.textoConfirmar || 'Confirmar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {alertaDialog && (
+        <div className="modal-overlay" onClick={() => setAlertaDialog(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>{alertaDialog.titulo}</h3>
+            <p style={{ color: 'var(--text-dim)', lineHeight: 1.5 }}>{alertaDialog.mensaje}</p>
+            <button className="btn-primario" style={{ marginTop: 16, width: '100%' }} onClick={() => setAlertaDialog(null)}>Entendido</button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
