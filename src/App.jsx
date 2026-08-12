@@ -37,6 +37,7 @@ const SOLICITUD_OPCIONES = [
 
 function storageKey(mesaId) { return `ronda_pedido_${mesaId}` }
 function ultimoPedidoKey(mesaId) { return `ronda_ultimo_pedido_${mesaId}` }
+function borradorKey(mesaId) { return `ronda_borrador_${mesaId}` }
 function nombreKey(mesaId) { return `ronda_nombre_${mesaId}` }
 
 function money(n) {
@@ -110,6 +111,43 @@ export default function App() {
   }, [])
 
   // --- Sistema de zona flotante: mide #capaFlotante y reserva el espacio automáticamente ---
+  // --- Borrador: guardar el pedido a medio armar, por si se corta la conexión ---
+  useEffect(() => {
+    if (!mesa || !modalCarrito) return
+    const hayAlgo = Object.values(carrito).some((c) => c > 0)
+    if (!hayAlgo) { localStorage.removeItem(borradorKey(mesa.id)); return }
+    localStorage.setItem(borradorKey(mesa.id), JSON.stringify({
+      carrito, metodoPago, comprobanteUrl, montoEfectivoMixto, nombreCliente,
+      guardadoEn: Date.now(),
+    }))
+  }, [mesa, modalCarrito, carrito, metodoPago, comprobanteUrl, montoEfectivoMixto, nombreCliente])
+
+  // --- Al llegar a la mesa, si hay un borrador reciente sin enviar, ofrecer retomarlo ---
+  useEffect(() => {
+    if (!mesa || pedido) return
+    const guardado = localStorage.getItem(borradorKey(mesa.id))
+    if (!guardado) return
+    try {
+      const borrador = JSON.parse(guardado)
+      const dosHoras = 2 * 60 * 60 * 1000
+      if (Date.now() - borrador.guardadoEn > dosHoras) { localStorage.removeItem(borradorKey(mesa.id)); return }
+      const hayAlgo = Object.values(borrador.carrito || {}).some((c) => c > 0)
+      if (!hayAlgo) return
+      if (window.confirm('Tenías un pedido a medio armar antes de que se cortara — ¿lo retomamos donde ibas?')) {
+        setCarrito(borrador.carrito || {})
+        setMetodoPago(borrador.metodoPago || 'efectivo')
+        setComprobanteUrl(borrador.comprobanteUrl || null)
+        setMontoEfectivoMixto(borrador.montoEfectivoMixto || '')
+        setNombreCliente(borrador.nombreCliente || '')
+        setModalCarrito(true)
+      } else {
+        localStorage.removeItem(borradorKey(mesa.id))
+      }
+    } catch (e) {
+      localStorage.removeItem(borradorKey(mesa.id))
+    }
+  }, [mesa])
+
   useEffect(() => {
     const capa = document.getElementById('capaFlotante')
     if (!capa) return
@@ -627,6 +665,7 @@ export default function App() {
       setModalCarrito(false)
       setMetodoPago('efectivo')
       setComprobanteUrl(null)
+      localStorage.removeItem(borradorKey(mesa.id))
       refrescarTotalVisita()
       refrescarHistorial()
       mostrarToast('✅ ¡Pedido enviado! El bar ya lo puede ver')
