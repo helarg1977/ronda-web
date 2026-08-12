@@ -567,12 +567,14 @@ export default function App() {
       }, 0)
 
       if (editando && pedido) {
-        await supabase.from('pedido_items').delete().eq('pedido_id', pedido.id)
+        const { error: errorBorrarItems } = await supabase.from('pedido_items').delete().eq('pedido_id', pedido.id)
+        if (errorBorrarItems) throw errorBorrarItems
         const items = entries.map(([id, cant]) => {
           const p = productos.find((x) => x.id === id)
           return { pedido_id: pedido.id, producto_id: id, cantidad: cant, precio_unitario: p.precio }
         })
-        await supabase.from('pedido_items').insert(items)
+        const { error: errorItems } = await supabase.from('pedido_items').insert(items)
+        if (errorItems) throw errorItems
         await supabase.from('pedidos').update({ total, cliente_nombre: nombreCliente || null }).eq('id', pedido.id)
         if (!mesa.cuenta_abierta) {
           await supabase.from('pagos').update({ metodo: metodoPago, monto: total, comprobante_url: comprobanteUrl || null }).eq('pedido_id', pedido.id)
@@ -590,7 +592,11 @@ export default function App() {
           const p = productos.find((x) => x.id === id)
           return { pedido_id: nuevoPedido.id, producto_id: id, cantidad: cant, precio_unitario: p.precio }
         })
-        await supabase.from('pedido_items').insert(items)
+        const { error: errorItems } = await supabase.from('pedido_items').insert(items)
+        if (errorItems) {
+          await supabase.from('pedidos').update({ estado: 'cancelado' }).eq('id', nuevoPedido.id)
+          throw errorItems
+        }
         if (!mesa.cuenta_abierta) {
           const { error: errorPago2 } = await supabase.from('pagos').insert({
             pedido_id: nuevoPedido.id, metodo: metodoPago, monto: total, comprobante_url: comprobanteUrl || null, confirmado: false,
