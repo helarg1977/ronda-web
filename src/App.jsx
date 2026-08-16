@@ -1180,8 +1180,9 @@ export default function App() {
                 <p className="pago-numero" style={{ marginTop: 10 }}>
                   El resto ({money(Math.max(0, cuentaPedidos.reduce((s, p) => s + Number(p.total), 0) - Number(montoEfectivoMixtoCuenta || 0)))}) lo transfieres a cualquiera de nuestros medios:
                 </p>
+                <p className="pago-subir-nota">👇 Sube la foto del comprobante — sin esto no podemos confirmar tu pago</p>
                 <label className="pago-subir">
-                  {subiendoComprobanteCuenta ? 'Subiendo…' : comprobanteCuentaUrl ? '✅ Comprobante subido — cambiar' : '📎 Subir foto del comprobante de la transferencia'}
+                  {subiendoComprobanteCuenta ? 'Subiendo…' : comprobanteCuentaUrl ? '✅ Comprobante subido — cambiar' : '📎 TOCA AQUÍ para subir la foto del comprobante'}
                   <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => subirComprobanteCuenta(e.target.files[0])} />
                 </label>
               </div>
@@ -1194,8 +1195,9 @@ export default function App() {
                     Abrir {METODOS_PAGO.find((m) => m.id === metodoPagoCuenta).label}
                   </button>
                 )}
+                <p className="pago-subir-nota">👇 Sube la foto del comprobante — sin esto no podemos confirmar tu pago</p>
                 <label className="pago-subir">
-                  {subiendoComprobanteCuenta ? 'Subiendo…' : comprobanteCuentaUrl ? '✅ Comprobante subido — cambiar' : '📎 Subir foto del comprobante'}
+                  {subiendoComprobanteCuenta ? 'Subiendo…' : comprobanteCuentaUrl ? '✅ Comprobante subido — cambiar' : '📎 TOCA AQUÍ para subir la foto del comprobante'}
                   <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => subirComprobanteCuenta(e.target.files[0])} />
                 </label>
               </div>
@@ -1267,8 +1269,9 @@ export default function App() {
                     <p className="pago-numero" style={{ marginTop: 10 }}>
                       El resto ({money(Math.max(0, totalCarrito - Number(montoEfectivoMixto || 0)))}) lo transfieres a cualquiera de nuestros medios:
                     </p>
+                    <p className="pago-subir-nota">👇 Sube la foto del comprobante — sin esto no podemos confirmar tu pago</p>
                     <label className="pago-subir">
-                      {subiendoComprobante ? 'Subiendo…' : comprobanteUrl ? '✅ Comprobante subido — cambiar' : '📎 Subir foto del comprobante de la transferencia'}
+                      {subiendoComprobante ? 'Subiendo…' : comprobanteUrl ? '✅ Comprobante subido — cambiar' : '📎 TOCA AQUÍ para subir la foto del comprobante'}
                       <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => subirComprobante(e.target.files[0])} />
                     </label>
                   </div>
@@ -1281,8 +1284,9 @@ export default function App() {
                         Abrir {METODOS_PAGO.find((m) => m.id === metodoPago).label}
                       </button>
                     )}
+                    <p className="pago-subir-nota">👇 Sube la foto del comprobante — sin esto no podemos confirmar tu pago</p>
                     <label className="pago-subir">
-                      {subiendoComprobante ? 'Subiendo…' : comprobanteUrl ? '✅ Comprobante subido — cambiar' : '📎 Subir foto del comprobante'}
+                      {subiendoComprobante ? 'Subiendo…' : comprobanteUrl ? '✅ Comprobante subido — cambiar' : '📎 TOCA AQUÍ para subir la foto del comprobante'}
                       <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => subirComprobante(e.target.files[0])} />
                     </label>
                   </div>
