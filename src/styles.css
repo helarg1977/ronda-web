@@ -399,8 +399,14 @@ body {
 }
 .pago-subir {
   display: block; text-align: center;
-  background: var(--bg-elevado); color: var(--accent); border: 1px dashed var(--accent);
-  border-radius: 12px; padding: 14px; font-size: 14px; font-weight: 600; cursor: pointer;
+  background: linear-gradient(135deg, var(--accent), #c97a2e); color: #17131f; border: none;
+  border-radius: 14px; padding: 18px; font-size: 17px; font-weight: 800; cursor: pointer;
+  box-shadow: 0 8px 20px rgba(217, 142, 63, 0.35);
+  margin-top: 4px;
+}
+.pago-subir-nota {
+  color: var(--danger, #e05c5c); font-size: 14px; font-weight: 700; text-align: center;
+  margin: 10px 0 6px;
 }
 
 .btn-primario {
