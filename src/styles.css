@@ -64,6 +64,22 @@ body {
   line-height: 1;
   text-shadow: 0 2px 8px rgba(0,0,0,0.6);
 }
+.boton-como-funciona {
+  background: var(--bg-elevado); color: var(--accent); border: 1px solid var(--accent);
+  border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 700; cursor: pointer;
+  margin: 6px 0;
+}
+.modal-como-funciona { max-width: 480px; max-height: 85vh; overflow-y: auto; }
+.paso-como-funciona {
+  display: flex; gap: 14px; align-items: flex-start; margin-bottom: 18px;
+}
+.paso-numero {
+  flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%;
+  background: var(--accent); color: #17131f; font-size: 18px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+}
+.paso-como-funciona strong { font-size: 16px; }
+.paso-como-funciona p { color: var(--text-dim); font-size: 15px; line-height: 1.5; margin: 4px 0 0; }
 .header-mesa {
   display: inline-block;
   color: var(--accent);
