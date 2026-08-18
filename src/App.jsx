@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react'
 import { supabase } from './supabaseClient'
 import { mensajeAmigable } from './erroresAmigables'
+import { iconoPorNombreProducto } from './iconosProductos'
 
 const ESTADOS = ['pendiente', 'confirmado', 'preparando', 'en_camino', 'entregado']
 const MINUTOS_RONDA_INTELIGENTE = 30 // a los cuantos minutos sin pedir se pregunta sola "¿otra ronda?"
@@ -1026,7 +1027,7 @@ export default function App() {
                 onError={() => setFotosConError((s) => new Set(s).add(p.id))}
               />
             ) : (
-              <div className="producto-icono">{categorias.find((c) => c.id === p.categoria_id)?.icono || '🍸'}</div>
+              <div className="producto-icono">{iconoPorNombreProducto(p.nombre) || categorias.find((c) => c.id === p.categoria_id)?.icono || '🍸'}</div>
             )}
             <div className="producto-info">
               <div className="producto-nombre-linea">
