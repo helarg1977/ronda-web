@@ -50,6 +50,7 @@ export default function App() {
   const [mesaCerrada, setMesaCerrada] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [mesa, setMesa] = useState(null)
+  const [mostrarComoFunciona, setMostrarComoFunciona] = useState(false)
   const [bar, setBar] = useState(null)
   const [categorias, setCategorias] = useState([])
   const [errorMenu, setErrorMenu] = useState(false)
@@ -252,6 +253,10 @@ export default function App() {
       setMesa(mesaData)
       setBar(barData)
       setNombreCliente(localStorage.getItem(nombreKey(mesaData.id)) || '')
+
+      if (!localStorage.getItem('ronda_ya_vio_como_funciona')) {
+        setMostrarComoFunciona(true)
+      }
 
       // --- Fidelización: reconocer al cliente si ya guardó su número antes ---
       const telGuardado = localStorage.getItem(`ronda_tel_${barData.id}`)
@@ -903,6 +908,7 @@ export default function App() {
           {bar?.logo_url && <img src={bar.logo_url} alt="" className="header-logo" />}
           <div className="header-title">{bar?.nombre}</div>
         </div>
+        <button className="boton-como-funciona" onClick={() => setMostrarComoFunciona(true)}>❓ ¿Cómo pedir?</button>
         <div className="header-mesa">Mesa {mesa?.numero}</div>
       </header>
 
@@ -1375,6 +1381,46 @@ export default function App() {
       {fotoAmpliada && (
         <div className="lightbox-fondo" onClick={() => setFotoAmpliada(null)}>
           <img src={fotoAmpliada} alt="ampliada" className="lightbox-imagen" />
+        </div>
+      )}
+
+      {mostrarComoFunciona && (
+        <div className="modal-overlay" onClick={() => { setMostrarComoFunciona(false); localStorage.setItem('ronda_ya_vio_como_funciona', '1') }}>
+          <div className="modal modal-como-funciona" onClick={(e) => e.stopPropagation()}>
+            <h2 style={{ marginTop: 0 }}>👋 ¿Cómo pedir?</h2>
+            <div className="paso-como-funciona">
+              <div className="paso-numero">1</div>
+              <div>
+                <strong>Elige lo que quieras</strong>
+                <p>Toca el <strong>+</strong> junto a cada producto para agregarlo. Puedes pedir varias cosas a la vez.</p>
+              </div>
+            </div>
+            <div className="paso-como-funciona">
+              <div className="paso-numero">2</div>
+              <div>
+                <strong>Revisa y envía tu pedido</strong>
+                <p>Abajo verás un botón dorado con el total — tócalo, revisa que esté bien, y confirma.</p>
+              </div>
+            </div>
+            <div className="paso-como-funciona">
+              <div className="paso-numero">3</div>
+              <div>
+                <strong>Paga como prefieras</strong>
+                <p><strong>Efectivo:</strong> le pagas al mesero cuando te lo lleve, no hay que hacer nada más aquí.<br/>
+                <strong>Nequi, Daviplata u otra transferencia:</strong> transfieres el monto y luego <strong>subes una foto del comprobante</strong> — así el bar sabe que ya pagaste.</p>
+              </div>
+            </div>
+            <div className="paso-como-funciona">
+              <div className="paso-numero">4</div>
+              <div>
+                <strong>Espera tu pedido</strong>
+                <p>En esta misma pantalla vas a ver cómo avanza: confirmado → preparando → en camino → entregado. No hace falta que hagas nada más, solo esperar.</p>
+              </div>
+            </div>
+            <button className="btn-primario" style={{ marginTop: 10 }} onClick={() => { setMostrarComoFunciona(false); localStorage.setItem('ronda_ya_vio_como_funciona', '1') }}>
+              Entendido, ¡vamos a pedir!
+            </button>
+          </div>
         </div>
       )}
 
