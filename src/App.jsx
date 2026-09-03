@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react'
 import { supabase } from './supabaseClient'
+import { mensajeAmigable } from './erroresAmigables'
+import { iconoPorNombreProducto } from './iconosProductos'
 
 const ESTADOS = ['pendiente', 'confirmado', 'preparando', 'en_camino', 'entregado']
 const MINUTOS_RONDA_INTELIGENTE = 30 // a los cuantos minutos sin pedir se pregunta sola "¿otra ronda?"
@@ -37,6 +39,7 @@ const SOLICITUD_OPCIONES = [
 
 function storageKey(mesaId) { return `ronda_pedido_${mesaId}` }
 function ultimoPedidoKey(mesaId) { return `ronda_ultimo_pedido_${mesaId}` }
+function borradorKey(mesaId) { return `ronda_borrador_${mesaId}` }
 function nombreKey(mesaId) { return `ronda_nombre_${mesaId}` }
 
 function money(n) {
@@ -48,8 +51,10 @@ export default function App() {
   const [mesaCerrada, setMesaCerrada] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [mesa, setMesa] = useState(null)
+  const [mostrarComoFunciona, setMostrarComoFunciona] = useState(false)
   const [bar, setBar] = useState(null)
   const [categorias, setCategorias] = useState([])
+  const [errorMenu, setErrorMenu] = useState(false)
   const [productos, setProductos] = useState([])
   const [categoriaActiva, setCategoriaActiva] = useState(null)
   const [carrito, setCarrito] = useState({}) // { productoId: cantidad }
@@ -84,6 +89,9 @@ export default function App() {
   const [cargandoCuenta, setCargandoCuenta] = useState(false)
 
   const [toast, setToast] = useState('')
+  const [confirmDialog, setConfirmDialog] = useState(null) // { titulo, mensaje, onConfirmar, textoConfirmar, destructivo }
+  const [alertaDialog, setAlertaDialog] = useState(null) // { titulo, mensaje }
+  const [borradorEncontrado, setBorradorEncontrado] = useState(null)
   const [ultimoPedido, setUltimoPedido] = useState(null)
   const [upsell, setUpsell] = useState(null)
   const [calificacion, setCalificacion] = useState(0)
@@ -92,6 +100,7 @@ export default function App() {
   const [topProductoId, setTopProductoId] = useState(null)
   const [historialAbierto, setHistorialAbierto] = useState(true)
   const [fotoAmpliada, setFotoAmpliada] = useState(null)
+  const [fotosConError, setFotosConError] = useState(new Set())
   const [modalDividir, setModalDividir] = useState(false)
   const [modalPagarCuenta, setModalPagarCuenta] = useState(false)
   const [metodoPagoCuenta, setMetodoPagoCuenta] = useState('efectivo')
@@ -110,10 +119,54 @@ export default function App() {
 
   const mostrarToast = useCallback((msg) => {
     setToast(msg)
-    setTimeout(() => setToast(''), 2500)
+    const duracion = Math.min(7000, Math.max(3000, msg.length * 60))
+    setTimeout(() => setToast(''), duracion)
   }, [])
 
   // --- Sistema de zona flotante: mide #capaFlotante y reserva el espacio automáticamente ---
+  // --- Borrador: guardar el pedido a medio armar, por si se corta la conexión ---
+  useEffect(() => {
+    if (!mesa || !modalCarrito) return
+    const hayAlgo = Object.values(carrito).some((c) => c > 0)
+    if (!hayAlgo) { localStorage.removeItem(borradorKey(mesa.id)); return }
+    localStorage.setItem(borradorKey(mesa.id), JSON.stringify({
+      carrito, metodoPago, comprobanteUrl, montoEfectivoMixto, nombreCliente,
+      guardadoEn: Date.now(),
+    }))
+  }, [mesa, modalCarrito, carrito, metodoPago, comprobanteUrl, montoEfectivoMixto, nombreCliente])
+
+  // --- Al llegar a la mesa, si hay un borrador reciente sin enviar, ofrecer retomarlo ---
+  useEffect(() => {
+    if (!mesa || pedido) return
+    const guardado = localStorage.getItem(borradorKey(mesa.id))
+    if (!guardado) return
+    try {
+      const borrador = JSON.parse(guardado)
+      const dosHoras = 2 * 60 * 60 * 1000
+      if (Date.now() - borrador.guardadoEn > dosHoras) { localStorage.removeItem(borradorKey(mesa.id)); return }
+      const hayAlgo = Object.values(borrador.carrito || {}).some((c) => c > 0)
+      if (!hayAlgo) return
+      setBorradorEncontrado(borrador)
+    } catch (e) {
+      localStorage.removeItem(borradorKey(mesa.id))
+    }
+  }, [mesa])
+
+  function retomarBorrador() {
+    setCarrito(borradorEncontrado.carrito || {})
+    setMetodoPago(borradorEncontrado.metodoPago || 'efectivo')
+    setComprobanteUrl(borradorEncontrado.comprobanteUrl || null)
+    setMontoEfectivoMixto(borradorEncontrado.montoEfectivoMixto || '')
+    setNombreCliente(borradorEncontrado.nombreCliente || '')
+    setModalCarrito(true)
+    setBorradorEncontrado(null)
+  }
+
+  function descartarBorrador() {
+    localStorage.removeItem(borradorKey(mesa.id))
+    setBorradorEncontrado(null)
+  }
+
   useEffect(() => {
     const capa = document.getElementById('capaFlotante')
     if (!capa) return
@@ -206,6 +259,10 @@ export default function App() {
       setBar(barData)
       setNombreCliente(localStorage.getItem(nombreKey(mesaData.id)) || '')
 
+      if (!localStorage.getItem('ronda_ya_vio_como_funciona')) {
+        setMostrarComoFunciona(true)
+      }
+
       // --- Fidelización: reconocer al cliente si ya guardó su número antes ---
       const telGuardado = localStorage.getItem(`ronda_tel_${barData.id}`)
       if (telGuardado) {
@@ -283,20 +340,21 @@ export default function App() {
   }, [mesa])
 
   async function cargarMenu(barId) {
-    const { data: cats } = await supabase
+    const { data: cats, error: errorCats } = await supabase
       .from('categorias').select('id, nombre, icono, orden')
       .eq('bar_id', barId).order('orden', { ascending: true })
-    const { data: prods } = await supabase
+    const { data: prods, error: errorProds } = await supabase
       .from('productos')
       .select('id, categoria_id, nombre, descripcion, precio, foto_url, disponible, orden, producto_sugerido_id')
       .eq('bar_id', barId).eq('disponible', true).order('orden', { ascending: true })
 
+    setErrorMenu(!!errorCats || !!errorProds)
     setCategorias(cats || [])
     setProductos(prods || [])
     if (cats && cats.length) setCategoriaActiva(cats[0].id)
 
     const { data: itemsVendidos } = await supabase
-      .from('pedido_items').select('producto_id, cantidad, pedidos!inner(bar_id)').eq('pedidos.bar_id', barId)
+      .from('pedido_items').select('producto_id, cantidad, pedidos!inner(bar_id, estado)').eq('pedidos.bar_id', barId).neq('pedidos.estado', 'cancelado')
     if (itemsVendidos && itemsVendidos.length > 0) {
       const conteo = {}
       itemsVendidos.forEach((it) => { conteo[it.producto_id] = (conteo[it.producto_id] || 0) + it.cantidad })
@@ -316,7 +374,13 @@ export default function App() {
 
   function abrirAppPago(esquema) {
     if (!esquema) return
+    const yaEstabaOculto = document.hidden
     window.location.href = esquema
+    setTimeout(() => {
+      if (!document.hidden && !yaEstabaOculto) {
+        mostrarToast('No se pudo abrir la app automáticamente — ábrela tú mismo y transfiere al número o llave que te mostramos arriba.')
+      }
+    }, 1500)
   }
 
   function guardarNombre(valor) {
@@ -498,9 +562,16 @@ export default function App() {
     setModalCarrito(true)
   }
 
-  async function cancelarPedido() {
+  function cancelarPedido() {
     if (!pedido || pedido.estado !== 'pendiente') return
-    if (!window.confirm('¿Cancelar este pedido? No se puede deshacer.')) return
+    setConfirmDialog({
+      titulo: '¿Cancelar este pedido?', mensaje: 'No se puede deshacer.', destructivo: true, textoConfirmar: 'Sí, cancelar',
+      onConfirmar: cancelarPedidoConfirmado,
+    })
+  }
+
+  async function cancelarPedidoConfirmado() {
+    setConfirmDialog(null)
     const { data: pagoBorrado, error: errorBorrarPago } = await supabase.from('pagos').delete().eq('pedido_id', pedido.id).select()
     if (errorBorrarPago) {
       mostrarToast('No se pudo cancelar del todo: ' + errorBorrarPago.message)
@@ -530,7 +601,8 @@ export default function App() {
     if (!file) return
     setSubiendoComprobanteCuenta(true)
     try {
-      const nombreArchivo = `${mesa.id}_cuenta_${Date.now()}_${file.name}`
+      const extension = (file.name.split('.').pop() || 'jpg').replace(/[^a-zA-Z0-9]/g, '').slice(0, 5) || 'jpg'
+      const nombreArchivo = `${mesa.id}_cuenta_${Date.now()}.${extension}`
       const { error } = await supabase.storage.from('comprobantes').upload(nombreArchivo, file)
       if (error) throw error
       const { data } = supabase.storage.from('comprobantes').getPublicUrl(nombreArchivo)
@@ -552,7 +624,10 @@ export default function App() {
       const { data: pagoExistente } = await supabase
         .from('pagos').select('id, confirmado').in('pedido_id', idsDeLaCuenta).eq('confirmado', false).limit(1).maybeSingle()
       if (pagoExistente) {
-        window.alert('⚠️ Ya habías reportado un pago para esta cuenta y el bar todavía no lo confirma.\n\nPídele al mesero o al dueño que lo revise antes de intentar pagar de nuevo.')
+        setAlertaDialog({
+          titulo: '⚠️ Ya habías reportado un pago',
+          mensaje: 'Para esta cuenta y el bar todavía no lo confirma. Pídele al mesero o al dueño que lo revise antes de intentar pagar de nuevo.',
+        })
         setModalPagarCuenta(false)
         return
       }
@@ -579,7 +654,8 @@ export default function App() {
     if (!file) return
     setSubiendoComprobante(true)
     try {
-      const nombreArchivo = `${mesa.id}_${Date.now()}_${file.name}`
+      const extension = (file.name.split('.').pop() || 'jpg').replace(/[^a-zA-Z0-9]/g, '').slice(0, 5) || 'jpg'
+      const nombreArchivo = `${mesa.id}_${Date.now()}.${extension}`
       const { error } = await supabase.storage.from('comprobantes').upload(nombreArchivo, file)
       if (error) throw error
       const { data } = supabase.storage.from('comprobantes').getPublicUrl(nombreArchivo)
@@ -593,8 +669,13 @@ export default function App() {
   }
 
   async function confirmarPedido() {
+    if (enviando) return
     const entries = Object.entries(carrito).filter(([, cant]) => cant > 0)
     if (entries.length === 0) return
+    if (metodoPago !== 'efectivo' && !comprobanteUrl) {
+      mostrarToast('📎 Sube la foto del comprobante antes de enviar el pedido.')
+      return
+    }
     setEnviando(true)
     try {
       const total = entries.reduce((sum, [id, cant]) => {
@@ -603,17 +684,31 @@ export default function App() {
       }, 0)
 
       if (editando && pedido) {
-        await supabase.from('pedido_items').delete().eq('pedido_id', pedido.id)
+        // Antes de aplicar la edición, confirmar que el mesero todavía no empezó a atenderlo
+        const { data: pedidoActual } = await supabase.from('pedidos').select('estado').eq('id', pedido.id).single()
+        if (!pedidoActual || pedidoActual.estado !== 'pendiente') {
+          mostrarToast('⚠️ El bar ya empezó a preparar este pedido — ya no se puede editar.')
+          setEditando(false)
+          setModalCarrito(false)
+          setEnviando(false)
+          return
+        }
+        const { error: errorBorrarItems } = await supabase.from('pedido_items').delete().eq('pedido_id', pedido.id)
+        if (errorBorrarItems) throw errorBorrarItems
         const items = entries.map(([id, cant]) => {
           const p = productos.find((x) => x.id === id)
           return { pedido_id: pedido.id, producto_id: id, cantidad: cant, precio_unitario: p.precio }
         })
-        await supabase.from('pedido_items').insert(items)
-        await supabase.from('pedidos').update({ total, cliente_nombre: nombreCliente || null }).eq('id', pedido.id)
+        const { error: errorItems } = await supabase.from('pedido_items').insert(items)
+        if (errorItems) throw errorItems
+        // El total ya lo recalculó y guardó la base de datos sola (trigger) — solo actualizamos el nombre
+        await supabase.from('pedidos').update({ cliente_nombre: nombreCliente || null }).eq('id', pedido.id)
+        const { data: pedidoActualizado } = await supabase.from('pedidos').select('*').eq('id', pedido.id).single()
+        const totalReal = pedidoActualizado ? Number(pedidoActualizado.total) : total
         if (!mesa.cuenta_abierta) {
-          await supabase.from('pagos').update({ metodo: metodoPago, monto: total, comprobante_url: comprobanteUrl || null }).eq('pedido_id', pedido.id)
+          await supabase.from('pagos').update({ metodo: metodoPago, monto: totalReal, comprobante_url: comprobanteUrl || null }).eq('pedido_id', pedido.id)
         }
-        setPedido({ ...pedido, total })
+        setPedido(pedidoActualizado || { ...pedido, total: totalReal })
         mostrarToast('Pedido actualizado ✏️')
       } else {
         const { data: nuevoPedido, error: pedidoErr } = await supabase
@@ -626,12 +721,21 @@ export default function App() {
           const p = productos.find((x) => x.id === id)
           return { pedido_id: nuevoPedido.id, producto_id: id, cantidad: cant, precio_unitario: p.precio }
         })
-        await supabase.from('pedido_items').insert(items)
+        const { error: errorItems } = await supabase.from('pedido_items').insert(items)
+        if (errorItems) {
+          await supabase.from('pedidos').update({ estado: 'cancelado' }).eq('id', nuevoPedido.id)
+          throw errorItems
+        }
+
+        // El total real lo calcula la base de datos (nunca el que mandó este celular) — lo traemos de vuelta
+        const { data: pedidoConfirmado } = await supabase.from('pedidos').select('*').eq('id', nuevoPedido.id).single()
+        const totalReal = pedidoConfirmado ? Number(pedidoConfirmado.total) : total
+
         if (!mesa.cuenta_abierta) {
           const { error: errorPago2 } = await supabase.from('pagos').insert({
-            pedido_id: nuevoPedido.id, metodo: metodoPago, monto: total, comprobante_url: comprobanteUrl || null, confirmado: false,
+            pedido_id: nuevoPedido.id, metodo: metodoPago, monto: totalReal, comprobante_url: comprobanteUrl || null, confirmado: false,
             monto_efectivo: metodoPago === 'mixto' ? Number(montoEfectivoMixto || 0) : null,
-            monto_transferencia: metodoPago === 'mixto' ? Math.max(0, total - Number(montoEfectivoMixto || 0)) : null,
+            monto_transferencia: metodoPago === 'mixto' ? Math.max(0, totalReal - Number(montoEfectivoMixto || 0)) : null,
           })
           if (errorPago2) throw errorPago2
         }
@@ -639,7 +743,7 @@ export default function App() {
         localStorage.setItem(storageKey(mesa.id), nuevoPedido.id)
         localStorage.setItem(ultimoPedidoKey(mesa.id), JSON.stringify(Object.fromEntries(entries)))
         setUltimoPedido(Object.fromEntries(entries))
-        setPedido(nuevoPedido); setPidioCuenta(false); localStorage.removeItem(`ronda_pidio_cuenta_${mesa.id}`)
+        setPedido(pedidoConfirmado || nuevoPedido); setPidioCuenta(false); localStorage.removeItem(`ronda_pidio_cuenta_${mesa.id}`)
         setCalificacion(0)
         setPropinaEnviada(false)
       }
@@ -649,11 +753,12 @@ export default function App() {
       setModalCarrito(false)
       setMetodoPago('efectivo')
       setComprobanteUrl(null)
+      localStorage.removeItem(borradorKey(mesa.id))
       refrescarTotalVisita()
       refrescarHistorial()
       mostrarToast('✅ ¡Pedido enviado! El bar ya lo puede ver')
     } catch (e) {
-      mostrarToast('No pudimos enviar tu pedido: ' + (e?.message || 'error desconocido'))
+      mostrarToast('No pudimos enviar tu pedido. ' + mensajeAmigable(e, 'Intenta de nuevo en un momento.'))
     } finally {
       setEnviando(false)
     }
@@ -697,11 +802,11 @@ export default function App() {
   }
 
   async function enviarPropina(pct) {
-    if (!pedido) return
+    if (!pedido || propinaEnviada) return
+    setPropinaEnviada(true)
     const monto = Math.round(pedido.total * pct)
     await supabase.from('propinas').insert({ pedido_id: pedido.id, mesero_id: pedido.mesero_id || null, monto, calificacion: calificacion || null })
     mostrarToast(`¡Gracias! Propina de ${money(monto)} registrada 🙌`)
-    setPropinaEnviada(true)
     setTimeout(() => {
       localStorage.removeItem(storageKey(mesa.id))
       localStorage.setItem(`ronda_ultima_entrega_${mesa.id}`, String(Date.now()))
@@ -720,7 +825,7 @@ export default function App() {
 
   async function enviarSolicitud(tipo) {
     const { error } = await supabase.from('solicitudes').insert({ bar_id: bar.id, mesa_id: mesa.id, tipo })
-    mostrarToast(error ? `Error: ${error.message}` : 'Ya avisamos al mesero 👍')
+    mostrarToast(error ? `No se pudo avisar: ${mensajeAmigable(error, 'Intenta de nuevo.')}` : 'Ya avisamos al mesero 👍')
     if (tipo === 'cuenta' && !error) {
       setPidioCuenta(true)
       localStorage.setItem(`ronda_pidio_cuenta_${mesa.id}`, '1')
@@ -766,11 +871,16 @@ export default function App() {
     setTextoChat(m.texto)
   }
 
-  async function borrarMensajeChat(m) {
-    if (!window.confirm('¿Borrar este mensaje?')) return
-    await supabase.from('mensajes_chat').delete().eq('id', m.id)
-    setMensajesChat((lista) => lista.filter((x) => x.id !== m.id))
-    if (editandoMensajeId === m.id) { setEditandoMensajeId(null); setTextoChat('') }
+  function borrarMensajeChat(m) {
+    setConfirmDialog({
+      titulo: '¿Borrar este mensaje?', mensaje: '', destructivo: true, textoConfirmar: 'Borrar',
+      onConfirmar: async () => {
+        setConfirmDialog(null)
+        await supabase.from('mensajes_chat').delete().eq('id', m.id)
+        setMensajesChat((lista) => lista.filter((x) => x.id !== m.id))
+        if (editandoMensajeId === m.id) { setEditandoMensajeId(null); setTextoChat('') }
+      },
+    })
   }
 
   useEffect(() => {
@@ -835,6 +945,7 @@ export default function App() {
           {bar?.logo_url && <img src={bar.logo_url} alt="" className="header-logo" />}
           <div className="header-title">{bar?.nombre}</div>
         </div>
+        <button className="boton-como-funciona" onClick={() => setMostrarComoFunciona(true)}>❓ ¿Cómo pedir?</button>
         <div className="header-mesa">Mesa {mesa?.numero}</div>
       </header>
 
@@ -944,9 +1055,9 @@ export default function App() {
           </div>
           <p className="propina-titulo">¿Dejamos propina?</p>
           <div className="propina-botones">
-            <button onClick={() => enviarPropina(0.10)}>10%</button>
-            <button onClick={() => enviarPropina(0.15)}>15%</button>
-            <button onClick={() => enviarPropina(0.20)}>20%</button>
+            <button disabled={propinaEnviada} onClick={() => enviarPropina(0.10)}>10% · {money(Math.round((pedido?.total || 0) * 0.10))}</button>
+            <button disabled={propinaEnviada} onClick={() => enviarPropina(0.15)}>15% · {money(Math.round((pedido?.total || 0) * 0.15))}</button>
+            <button disabled={propinaEnviada} onClick={() => enviarPropina(0.20)}>20% · {money(Math.round((pedido?.total || 0) * 0.20))}</button>
           </div>
           <button className="btn-secundario" onClick={terminarSinPropina}>No, gracias</button>
         </div>
@@ -968,10 +1079,14 @@ export default function App() {
       <main className="productos">
         {productosVisibles.map((p) => (
           <div key={p.id} className={`producto-card ${carrito[p.id] > 0 ? 'en-carrito' : ''}`}>
-            {p.foto_url ? (
-              <img src={p.foto_url} alt={p.nombre} className="producto-foto" onClick={() => setFotoAmpliada(p.foto_url)} />
+            {p.foto_url && !fotosConError.has(p.id) ? (
+              <img
+                src={p.foto_url} alt={p.nombre} className="producto-foto"
+                onClick={() => setFotoAmpliada(p.foto_url)}
+                onError={() => setFotosConError((s) => new Set(s).add(p.id))}
+              />
             ) : (
-              <div className="producto-icono">{categorias.find((c) => c.id === p.categoria_id)?.icono || '🍸'}</div>
+              <div className="producto-icono">{iconoPorNombreProducto(p.nombre) || categorias.find((c) => c.id === p.categoria_id)?.icono || '🍸'}</div>
             )}
             <div className="producto-info">
               <div className="producto-nombre-linea">
@@ -1000,7 +1115,13 @@ export default function App() {
             </div>
           </div>
         ))}
-        {productosVisibles.length === 0 && <p className="vacio">No hay productos en esta categoría.</p>}
+        {productosVisibles.length === 0 && errorMenu && (
+          <div className="vacio">
+            <p>No pudimos cargar el menú — revisa tu conexión.</p>
+            <button className="btn-secundario" onClick={() => cargarMenu(bar.id)}>Reintentar</button>
+          </div>
+        )}
+        {productosVisibles.length === 0 && !errorMenu && <p className="vacio">No hay productos en esta categoría.</p>}
       </main>
 
       <div id="capaFlotante">
@@ -1015,7 +1136,7 @@ export default function App() {
         {totalItems > 0 && !editando && (
           <button className="cta-flotante" onClick={abrirCarritoNuevo}>
             <span>{totalItems} producto{totalItems > 1 ? 's' : ''}</span>
-            <span>Revisar y enviar → {money(totalCarrito)}</span>
+            <span>Revisar y enviar → <span className="cta-monto">{money(totalCarrito)}</span></span>
           </button>
         )}
         {totalItems === 0 && !pedido && ultimoPedido && (
@@ -1115,14 +1236,19 @@ export default function App() {
                 <input
                   type="text" inputMode="numeric" className="input-telefono"
                   value={montoEfectivoMixtoCuenta ? Number(montoEfectivoMixtoCuenta).toLocaleString('es-CO') : ''}
-                  onChange={(e) => setMontoEfectivoMixtoCuenta(e.target.value.replace(/\D/g, ''))}
+                  onChange={(e) => {
+                    const total = cuentaPedidos.reduce((s, p) => s + Number(p.total), 0)
+                    const valor = Number(e.target.value.replace(/\D/g, '') || 0)
+                    setMontoEfectivoMixtoCuenta(String(Math.min(valor, total)))
+                  }}
                   placeholder="Ej: 20.000"
                 />
                 <p className="pago-numero" style={{ marginTop: 10 }}>
                   El resto ({money(Math.max(0, cuentaPedidos.reduce((s, p) => s + Number(p.total), 0) - Number(montoEfectivoMixtoCuenta || 0)))}) lo transfieres a cualquiera de nuestros medios:
                 </p>
+                <p className="pago-subir-nota">👇 Sube la foto del comprobante — sin esto no podemos confirmar tu pago</p>
                 <label className="pago-subir">
-                  {subiendoComprobanteCuenta ? 'Subiendo…' : comprobanteCuentaUrl ? '✅ Comprobante subido — cambiar' : '📎 Subir foto del comprobante de la transferencia'}
+                  {subiendoComprobanteCuenta ? 'Subiendo…' : comprobanteCuentaUrl ? '✅ Comprobante subido — cambiar' : '📎 TOCA AQUÍ para subir la foto del comprobante'}
                   <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => subirComprobanteCuenta(e.target.files[0])} />
                 </label>
               </div>
@@ -1135,8 +1261,9 @@ export default function App() {
                     Abrir {METODOS_PAGO.find((m) => m.id === metodoPagoCuenta).label}
                   </button>
                 )}
+                <p className="pago-subir-nota">👇 Sube la foto del comprobante — sin esto no podemos confirmar tu pago</p>
                 <label className="pago-subir">
-                  {subiendoComprobanteCuenta ? 'Subiendo…' : comprobanteCuentaUrl ? '✅ Comprobante subido — cambiar' : '📎 Subir foto del comprobante'}
+                  {subiendoComprobanteCuenta ? 'Subiendo…' : comprobanteCuentaUrl ? '✅ Comprobante subido — cambiar' : '📎 TOCA AQUÍ para subir la foto del comprobante'}
                   <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => subirComprobanteCuenta(e.target.files[0])} />
                 </label>
               </div>
@@ -1199,14 +1326,18 @@ export default function App() {
                     <input
                       type="text" inputMode="numeric" className="input-telefono"
                       value={montoEfectivoMixto ? Number(montoEfectivoMixto).toLocaleString('es-CO') : ''}
-                      onChange={(e) => setMontoEfectivoMixto(e.target.value.replace(/\D/g, ''))}
+                      onChange={(e) => {
+                        const valor = Number(e.target.value.replace(/\D/g, '') || 0)
+                        setMontoEfectivoMixto(String(Math.min(valor, totalCarrito)))
+                      }}
                       placeholder="Ej: 10.000"
                     />
                     <p className="pago-numero" style={{ marginTop: 10 }}>
                       El resto ({money(Math.max(0, totalCarrito - Number(montoEfectivoMixto || 0)))}) lo transfieres a cualquiera de nuestros medios:
                     </p>
+                    <p className="pago-subir-nota">👇 Sube la foto del comprobante — sin esto no podemos confirmar tu pago</p>
                     <label className="pago-subir">
-                      {subiendoComprobante ? 'Subiendo…' : comprobanteUrl ? '✅ Comprobante subido — cambiar' : '📎 Subir foto del comprobante de la transferencia'}
+                      {subiendoComprobante ? 'Subiendo…' : comprobanteUrl ? '✅ Comprobante subido — cambiar' : '📎 TOCA AQUÍ para subir la foto del comprobante'}
                       <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => subirComprobante(e.target.files[0])} />
                     </label>
                   </div>
@@ -1219,8 +1350,9 @@ export default function App() {
                         Abrir {METODOS_PAGO.find((m) => m.id === metodoPago).label}
                       </button>
                     )}
+                    <p className="pago-subir-nota">👇 Sube la foto del comprobante — sin esto no podemos confirmar tu pago</p>
                     <label className="pago-subir">
-                      {subiendoComprobante ? 'Subiendo…' : comprobanteUrl ? '✅ Comprobante subido — cambiar' : '📎 Subir foto del comprobante'}
+                      {subiendoComprobante ? 'Subiendo…' : comprobanteUrl ? '✅ Comprobante subido — cambiar' : '📎 TOCA AQUÍ para subir la foto del comprobante'}
                       <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => subirComprobante(e.target.files[0])} />
                     </label>
                   </div>
@@ -1312,7 +1444,91 @@ export default function App() {
         </div>
       )}
 
-      {toast && <div className="toast">{toast}</div>}
+      {mostrarComoFunciona && (
+        <div className="modal-overlay" onClick={() => { setMostrarComoFunciona(false); localStorage.setItem('ronda_ya_vio_como_funciona', '1') }}>
+          <div className="modal modal-como-funciona" onClick={(e) => e.stopPropagation()}>
+            <h2 style={{ marginTop: 0 }}>👋 ¿Cómo pedir?</h2>
+            <div className="paso-como-funciona">
+              <div className="paso-numero">1</div>
+              <div>
+                <strong>Elige lo que quieras</strong>
+                <p>Toca el <strong>+</strong> junto a cada producto para agregarlo. Puedes pedir varias cosas a la vez.</p>
+              </div>
+            </div>
+            <div className="paso-como-funciona">
+              <div className="paso-numero">2</div>
+              <div>
+                <strong>Revisa y envía tu pedido</strong>
+                <p>Abajo verás un botón dorado con el total — tócalo, revisa que esté bien, y confirma.</p>
+              </div>
+            </div>
+            <div className="paso-como-funciona">
+              <div className="paso-numero">3</div>
+              <div>
+                <strong>Paga como prefieras</strong>
+                <p><strong>Efectivo:</strong> le pagas al mesero cuando te lo lleve, no hay que hacer nada más aquí.<br/>
+                <strong>Nequi, Daviplata u otra transferencia:</strong> transfieres el monto y luego <strong>subes una foto del comprobante</strong> — así el bar sabe que ya pagaste.</p>
+              </div>
+            </div>
+            <div className="paso-como-funciona">
+              <div className="paso-numero">4</div>
+              <div>
+                <strong>Espera tu pedido</strong>
+                <p>En esta misma pantalla vas a ver cómo avanza: confirmado → preparando → en camino → entregado. No hace falta que hagas nada más, solo esperar.</p>
+              </div>
+            </div>
+            <button className="btn-primario" style={{ marginTop: 10 }} onClick={() => { setMostrarComoFunciona(false); localStorage.setItem('ronda_ya_vio_como_funciona', '1') }}>
+              Entendido, ¡vamos a pedir!
+            </button>
+          </div>
+        </div>
+      )}
+
+      {toast && <div className="toast" onClick={() => setToast('')}>{toast}</div>}
+
+      {borradorEncontrado && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <h3>¿Retomamos tu pedido?</h3>
+            <p style={{ color: 'var(--text-dim)', lineHeight: 1.5 }}>
+              Tenías un pedido a medio armar antes de que se cortara — ¿lo retomamos donde ibas?
+            </p>
+            <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+              <button className="btn-secundario" onClick={descartarBorrador}>No, empezar de nuevo</button>
+              <button className="btn-primario" onClick={retomarBorrador}>Sí, retomarlo</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDialog && (
+        <div className="modal-overlay" onClick={() => setConfirmDialog(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>{confirmDialog.titulo}</h3>
+            {confirmDialog.mensaje && <p style={{ color: 'var(--text-dim)', lineHeight: 1.5 }}>{confirmDialog.mensaje}</p>}
+            <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+              <button className="btn-secundario" onClick={() => setConfirmDialog(null)}>Cancelar</button>
+              <button
+                className="btn-secundario"
+                style={confirmDialog.destructivo ? { color: '#e05c5c', borderColor: '#e05c5c' } : {}}
+                onClick={confirmDialog.onConfirmar}
+              >
+                {confirmDialog.textoConfirmar || 'Confirmar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {alertaDialog && (
+        <div className="modal-overlay" onClick={() => setAlertaDialog(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>{alertaDialog.titulo}</h3>
+            <p style={{ color: 'var(--text-dim)', lineHeight: 1.5 }}>{alertaDialog.mensaje}</p>
+            <button className="btn-primario" style={{ marginTop: 16, width: '100%' }} onClick={() => setAlertaDialog(null)}>Entendido</button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

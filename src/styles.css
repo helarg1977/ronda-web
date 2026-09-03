@@ -64,6 +64,22 @@ body {
   line-height: 1;
   text-shadow: 0 2px 8px rgba(0,0,0,0.6);
 }
+.boton-como-funciona {
+  background: var(--bg-elevado); color: var(--accent); border: 1px solid var(--accent);
+  border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 700; cursor: pointer;
+  margin: 6px 0;
+}
+.modal-como-funciona { max-width: 480px; max-height: 85vh; overflow-y: auto; }
+.paso-como-funciona {
+  display: flex; gap: 14px; align-items: flex-start; margin-bottom: 18px;
+}
+.paso-numero {
+  flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%;
+  background: var(--accent); color: #17131f; font-size: 18px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+}
+.paso-como-funciona strong { font-size: 16px; }
+.paso-como-funciona p { color: var(--text-dim); font-size: 15px; line-height: 1.5; margin: 4px 0 0; }
 .header-mesa {
   display: inline-block;
   color: var(--accent);
@@ -192,11 +208,11 @@ body {
 .banner-botones { display: flex; flex-direction: column; gap: 6px; }
 .banner-editar {
   background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent);
-  border-radius: 10px; padding: 8px 12px; font-size: 13px; font-weight: 700; white-space: nowrap;
+  border-radius: 12px; padding: 13px 16px; font-size: 14px; font-weight: 700; white-space: nowrap; min-height: 44px;
 }
 .banner-cancelar {
   background: transparent; color: var(--danger); border: 1px solid var(--danger);
-  border-radius: 10px; padding: 8px 12px; font-size: 13px; font-weight: 700; white-space: nowrap;
+  border-radius: 12px; padding: 13px 16px; font-size: 14px; font-weight: 700; white-space: nowrap; min-height: 44px;
 }
 .banner-entregado { border-color: var(--exito); }
 
@@ -383,6 +399,7 @@ body {
   box-shadow: 0 10px 26px rgba(217, 142, 63, 0.4);
 }
 .cta-flotante:disabled { opacity: 0.6; }
+.cta-monto { font-family: var(--font-body); font-weight: 700; }
 
 /* --- Carrito y seguimiento --- */
 .carrito-view, .seguimiento-view { padding: 22px 18px; flex: 1; }
@@ -406,7 +423,7 @@ body {
 .pago-btn.activo { background: var(--accent); color: #17131f; border-color: var(--accent); }
 .pago-btn-mixto { border-color: #4a90d9; border-width: 2px; font-weight: 700; flex-basis: 100%; padding: 14px; display: flex; flex-direction: column; gap: 4px; }
 .pago-btn-mixto.activo { background: #4a90d9; border-color: #4a90d9; }
-.pago-btn-ayuda { font-size: 11px; font-weight: 400; opacity: 0.75; }
+.pago-btn-ayuda { font-size: 13px; font-weight: 400; opacity: 0.85; }
 .pago-detalle { background: var(--card); border: 1px solid var(--card-borde); border-radius: 14px; padding: 16px; margin-top: 12px; }
 .pago-numero { font-size: 15px; margin: 0 0 12px; }
 .btn-abrir-app {
@@ -415,8 +432,14 @@ body {
 }
 .pago-subir {
   display: block; text-align: center;
-  background: var(--bg-elevado); color: var(--accent); border: 1px dashed var(--accent);
-  border-radius: 12px; padding: 14px; font-size: 14px; font-weight: 600; cursor: pointer;
+  background: linear-gradient(135deg, #3ecf8e, #2ba873); color: #0d1f17; border: none;
+  border-radius: 14px; padding: 18px; font-size: 17px; font-weight: 800; cursor: pointer;
+  box-shadow: 0 8px 20px rgba(62, 207, 142, 0.35);
+  margin-top: 4px;
+}
+.pago-subir-nota {
+  color: var(--danger, #e05c5c); font-size: 14px; font-weight: 700; text-align: center;
+  margin: 10px 0 6px;
 }
 
 .btn-primario {
