@@ -96,6 +96,23 @@ body {
 }
 .progreso-fidelidad-texto { display: block; font-size: 11px; color: var(--text-dim); font-weight: 600; margin-top: 5px; }
 
+.tarjeta-cumple {
+  margin: 12px 16px 0;
+  background: linear-gradient(135deg, rgba(217, 142, 63, 0.12), rgba(217, 142, 63, 0.04));
+  border: 1px solid var(--accent);
+  border-radius: 14px;
+  padding: 16px;
+}
+.tarjeta-cumple-titulo { font-size: 16px; font-weight: 800; margin: 0 0 4px; }
+.tarjeta-cumple-texto { font-size: 13px; color: var(--text-dim); margin: 0 0 12px; line-height: 1.4; }
+.tarjeta-cumple-selects { display: flex; gap: 8px; margin-bottom: 12px; }
+.tarjeta-cumple-select {
+  flex: 1; background: var(--bg-elevado); color: var(--text); border: 1px solid var(--card-borde);
+  border-radius: 10px; padding: 10px; font-size: 14px;
+}
+.tarjeta-cumple-botones { display: flex; gap: 8px; }
+.tarjeta-cumple-botones .btn-primario, .tarjeta-cumple-botones .btn-secundario { flex: 1; width: auto; }
+
 .banner-hora-pico {
   margin: 12px 16px 0;
   background: rgba(255, 138, 0, 0.14);

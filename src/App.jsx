@@ -61,6 +61,10 @@ export default function App() {
   const [nombreCliente, setNombreCliente] = useState('')
   const [telefonoCliente, setTelefonoCliente] = useState('')
   const [visitasCliente, setVisitasCliente] = useState(0)
+  const [clienteBarId, setClienteBarId] = useState(null)
+  const [mostrarPedirCumple, setMostrarPedirCumple] = useState(false)
+  const [cumpleDiaInput, setCumpleDiaInput] = useState('')
+  const [cumpleMesInput, setCumpleMesInput] = useState('')
   const [mostrarGuardarTel, setMostrarGuardarTel] = useState(false)
   const [promociones, setPromociones] = useState([])
   const [promoVista, setPromoVista] = useState(null)
@@ -207,11 +211,15 @@ export default function App() {
       if (telGuardado) {
         setTelefonoCliente(telGuardado)
         const { data: clienteExistente } = await supabase
-          .from('clientes_bar').select('id, nombre, visitas').eq('bar_id', barData.id).eq('telefono', telGuardado).maybeSingle()
+          .from('clientes_bar').select('id, nombre, visitas, cumpleanos_dia, cumpleanos_mes').eq('bar_id', barData.id).eq('telefono', telGuardado).maybeSingle()
         if (clienteExistente) {
           const nuevasVisitas = clienteExistente.visitas + 1
           await supabase.from('clientes_bar').update({ visitas: nuevasVisitas, ultima_visita: new Date().toISOString() }).eq('id', clienteExistente.id)
           setVisitasCliente(nuevasVisitas)
+          setClienteBarId(clienteExistente.id)
+          if (!clienteExistente.cumpleanos_dia && !localStorage.getItem(`ronda_cumple_pedido_${barData.id}`)) {
+            setMostrarPedirCumple(true)
+          }
           const nombreYaEscritoAqui = localStorage.getItem(nombreKey(mesaData.id))
           if (!nombreYaEscritoAqui && clienteExistente.nombre) {
             guardarNombre(clienteExistente.nombre)
@@ -316,17 +324,45 @@ export default function App() {
     if (mesa) localStorage.setItem(nombreKey(mesa.id), valor)
   }
 
+  async function guardarCumpleanos() {
+    const dia = parseInt(cumpleDiaInput, 10)
+    const mes = parseInt(cumpleMesInput, 10)
+    if (!dia || !mes || dia < 1 || dia > 31 || mes < 1 || mes > 12) {
+      mostrarToast('Elige un día y un mes válidos.')
+      return
+    }
+    if (clienteBarId) {
+      await supabase.from('clientes_bar').update({ cumpleanos_dia: dia, cumpleanos_mes: mes }).eq('id', clienteBarId)
+    }
+    if (bar) localStorage.setItem(`ronda_cumple_pedido_${bar.id}`, '1')
+    setMostrarPedirCumple(false)
+    mostrarToast('🎂 ¡Listo! Te vamos a tener una sorpresa.')
+  }
+
+  function descartarPedirCumple() {
+    if (bar) localStorage.setItem(`ronda_cumple_pedido_${bar.id}`, '1')
+    setMostrarPedirCumple(false)
+  }
+
   async function guardarTelefonoCliente() {
     const tel = telefonoCliente.trim()
     if (!tel || !bar) return
     localStorage.setItem(`ronda_tel_${bar.id}`, tel)
-    const { data: existente } = await supabase.from('clientes_bar').select('id, visitas').eq('bar_id', bar.id).eq('telefono', tel).maybeSingle()
+    const { data: existente } = await supabase.from('clientes_bar').select('id, visitas, cumpleanos_dia').eq('bar_id', bar.id).eq('telefono', tel).maybeSingle()
     if (existente) {
       await supabase.from('clientes_bar').update({ visitas: existente.visitas + 1, ultima_visita: new Date().toISOString(), nombre: nombreCliente || null }).eq('id', existente.id)
       setVisitasCliente(existente.visitas + 1)
+      setClienteBarId(existente.id)
+      if (!existente.cumpleanos_dia && !localStorage.getItem(`ronda_cumple_pedido_${bar.id}`)) {
+        setMostrarPedirCumple(true)
+      }
     } else {
-      await supabase.from('clientes_bar').insert({ bar_id: bar.id, telefono: tel, nombre: nombreCliente || null, visitas: 2 })
+      const { data: nuevo } = await supabase.from('clientes_bar').insert({ bar_id: bar.id, telefono: tel, nombre: nombreCliente || null, visitas: 2 }).select('id').single()
       setVisitasCliente(2)
+      if (nuevo?.id) {
+        setClienteBarId(nuevo.id)
+        if (!localStorage.getItem(`ronda_cumple_pedido_${bar.id}`)) setMostrarPedirCumple(true)
+      }
     }
     setMostrarGuardarTel(false)
     mostrarToast('¡Listo! La próxima vez te reconocemos 🙌')
@@ -813,6 +849,29 @@ export default function App() {
               <span className="progreso-fidelidad-texto">{visitasCliente} de {META_VISITAS_FIDELIZACION} visitas hacia tu recompensa</span>
             </div>
           )}
+        </div>
+      )}
+
+      {mostrarPedirCumple && (
+        <div className="tarjeta-cumple">
+          <p className="tarjeta-cumple-titulo">🎂 ¿Cuándo cumples años?</p>
+          <p className="tarjeta-cumple-texto">Queremos celebrarlo contigo — te vamos a tener una sorpresa ese día.</p>
+          <div className="tarjeta-cumple-selects">
+            <select className="tarjeta-cumple-select" value={cumpleDiaInput} onChange={(e) => setCumpleDiaInput(e.target.value)}>
+              <option value="">Día</option>
+              {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => <option key={d} value={d}>{d}</option>)}
+            </select>
+            <select className="tarjeta-cumple-select" value={cumpleMesInput} onChange={(e) => setCumpleMesInput(e.target.value)}>
+              <option value="">Mes</option>
+              {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'].map((m, i) => (
+                <option key={m} value={i + 1}>{m}</option>
+              ))}
+            </select>
+          </div>
+          <div className="tarjeta-cumple-botones">
+            <button className="btn-secundario" onClick={descartarPedirCumple}>Ahora no</button>
+            <button className="btn-primario" onClick={guardarCumpleanos}>🎁 Quiero mi regalo</button>
+          </div>
         </div>
       )}
 
