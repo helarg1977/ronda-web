@@ -106,6 +106,7 @@ export default function App() {
   const [metodoPagoCuenta, setMetodoPagoCuenta] = useState('efectivo')
   const [montoEfectivoMixtoCuenta, setMontoEfectivoMixtoCuenta] = useState('')
   const [comprobanteCuentaUrl, setComprobanteCuentaUrl] = useState('')
+  const [comprobanteCuentaHash, setComprobanteCuentaHash] = useState(null)
   const [subiendoComprobanteCuenta, setSubiendoComprobanteCuenta] = useState(false)
   const [pagandoCuenta, setPagandoCuenta] = useState(false)
   const [mostrarPromptRonda, setMostrarPromptRonda] = useState(false)
@@ -115,6 +116,7 @@ export default function App() {
   const [metodoPago, setMetodoPago] = useState('efectivo')
   const [montoEfectivoMixto, setMontoEfectivoMixto] = useState('')
   const [comprobanteUrl, setComprobanteUrl] = useState(null)
+  const [comprobanteHash, setComprobanteHash] = useState(null)
   const [subiendoComprobante, setSubiendoComprobante] = useState(false)
 
   const mostrarToast = useCallback((msg) => {
@@ -607,6 +609,7 @@ export default function App() {
       if (error) throw error
       const { data } = supabase.storage.from('comprobantes').getPublicUrl(nombreArchivo)
       setComprobanteCuentaUrl(data.publicUrl)
+      setComprobanteCuentaHash(await calcularHashArchivo(file))
       mostrarToast('Comprobante subido ✅')
     } catch (e) {
       mostrarToast('No se pudo subir el comprobante. Intenta de nuevo.')
@@ -634,7 +637,7 @@ export default function App() {
       const ultimoPedidoId = cuentaPedidos[cuentaPedidos.length - 1].id
       const { error: errorPago1 } = await supabase.from('pagos').insert({
         pedido_id: ultimoPedidoId, metodo: metodoPagoCuenta, monto: totalCuenta,
-        comprobante_url: comprobanteCuentaUrl || null, confirmado: false,
+        comprobante_url: comprobanteCuentaUrl || null, comprobante_hash: comprobanteCuentaHash || null, confirmado: false,
         monto_efectivo: metodoPagoCuenta === 'mixto' ? Number(montoEfectivoMixtoCuenta || 0) : null,
         monto_transferencia: metodoPagoCuenta === 'mixto' ? Math.max(0, totalCuenta - Number(montoEfectivoMixtoCuenta || 0)) : null,
       })
@@ -643,10 +646,21 @@ export default function App() {
       mostrarToast('¡Listo! Ya avisamos que quieres pagar y cerrar la cuenta 🙌')
       setModalPagarCuenta(false)
       setComprobanteCuentaUrl('')
+      setComprobanteCuentaHash(null)
     } catch (e) {
       mostrarToast('No se pudo registrar el pago. Intenta de nuevo.')
     } finally {
       setPagandoCuenta(false)
+    }
+  }
+
+  async function calcularHashArchivo(file) {
+    try {
+      const buffer = await file.arrayBuffer()
+      const hashBuffer = await crypto.subtle.digest('SHA-256', buffer)
+      return Array.from(new Uint8Array(hashBuffer)).map((b) => b.toString(16).padStart(2, '0')).join('')
+    } catch (e) {
+      return null // si el navegador no soporta esto, seguimos sin la protección, sin romper la subida
     }
   }
 
@@ -660,6 +674,7 @@ export default function App() {
       if (error) throw error
       const { data } = supabase.storage.from('comprobantes').getPublicUrl(nombreArchivo)
       setComprobanteUrl(data.publicUrl)
+      setComprobanteHash(await calcularHashArchivo(file))
       mostrarToast('Comprobante subido ✅')
     } catch (e) {
       mostrarToast('No se pudo subir el comprobante. Intenta de nuevo.')
@@ -733,7 +748,7 @@ export default function App() {
 
         if (!mesa.cuenta_abierta) {
           const { error: errorPago2 } = await supabase.from('pagos').insert({
-            pedido_id: nuevoPedido.id, metodo: metodoPago, monto: totalReal, comprobante_url: comprobanteUrl || null, confirmado: false,
+            pedido_id: nuevoPedido.id, metodo: metodoPago, monto: totalReal, comprobante_url: comprobanteUrl || null, comprobante_hash: comprobanteHash || null, confirmado: false,
             monto_efectivo: metodoPago === 'mixto' ? Number(montoEfectivoMixto || 0) : null,
             monto_transferencia: metodoPago === 'mixto' ? Math.max(0, totalReal - Number(montoEfectivoMixto || 0)) : null,
           })
@@ -753,6 +768,7 @@ export default function App() {
       setModalCarrito(false)
       setMetodoPago('efectivo')
       setComprobanteUrl(null)
+      setComprobanteHash(null)
       localStorage.removeItem(borradorKey(mesa.id))
       refrescarTotalVisita()
       refrescarHistorial()
