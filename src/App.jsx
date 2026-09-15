@@ -656,6 +656,7 @@ export default function App() {
       setModalPagarCuenta(false)
       setComprobanteCuentaUrl('')
       setComprobanteCuentaHash(null)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (e) {
       mostrarToast('No se pudo registrar el pago. Intenta de nuevo.')
     } finally {
@@ -781,6 +782,7 @@ export default function App() {
       localStorage.removeItem(borradorKey(mesa.id))
       refrescarTotalVisita()
       refrescarHistorial()
+      window.scrollTo({ top: 0, behavior: 'smooth' })
       mostrarToast('✅ ¡Pedido enviado! El bar ya lo puede ver')
     } catch (e) {
       mostrarToast('No pudimos enviar tu pedido. ' + mensajeAmigable(e, 'Intenta de nuevo en un momento.'))
