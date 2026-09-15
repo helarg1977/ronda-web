@@ -57,6 +57,7 @@ export default function App() {
   const [errorMenu, setErrorMenu] = useState(false)
   const [productos, setProductos] = useState([])
   const [categoriaActiva, setCategoriaActiva] = useState(null)
+  const [busquedaProducto, setBusquedaProducto] = useState('')
   const [carrito, setCarrito] = useState({}) // { productoId: cantidad }
   const [pedido, setPedido] = useState(null) // pedido activo (no entregado/cancelado) o null
   const [nombreMeseroActual, setNombreMeseroActual] = useState('')
@@ -492,7 +493,13 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pedido?.id])
 
-  const productosVisibles = useMemo(() => productos.filter((p) => p.categoria_id === categoriaActiva), [productos, categoriaActiva])
+  const productosVisibles = useMemo(() => {
+    if (busquedaProducto.trim()) {
+      const q = busquedaProducto.trim().toLowerCase()
+      return productos.filter((p) => p.nombre.toLowerCase().includes(q))
+    }
+    return productos.filter((p) => p.categoria_id === categoriaActiva)
+  }, [productos, categoriaActiva, busquedaProducto])
   const totalItems = useMemo(() => Object.values(carrito).reduce((a, b) => a + b, 0), [carrito])
   const totalCarrito = useMemo(() => Object.entries(carrito).reduce((sum, [id, cant]) => {
     const p = productos.find((x) => x.id === id)
@@ -1081,7 +1088,22 @@ export default function App() {
         </div>
       )}
 
-      {categorias.length > 1 && (
+      {productos.length > 8 && (
+        <div className="busqueda-productos-wrap">
+          <input
+            type="text"
+            className="input-busqueda-productos"
+            placeholder="🔍 Buscar en el menú..."
+            value={busquedaProducto}
+            onChange={(e) => setBusquedaProducto(e.target.value)}
+          />
+          {busquedaProducto.trim() && (
+            <button className="limpiar-busqueda" onClick={() => setBusquedaProducto('')}>✕</button>
+          )}
+        </div>
+      )}
+
+      {categorias.length > 1 && !busquedaProducto.trim() && (
         <div className="categorias-wrap">
           <nav className="categorias">
             {categorias.map((c) => (
@@ -1139,7 +1161,9 @@ export default function App() {
             <button className="btn-secundario" onClick={() => cargarMenu(bar.id)}>Reintentar</button>
           </div>
         )}
-        {productosVisibles.length === 0 && !errorMenu && <p className="vacio">No hay productos en esta categoría.</p>}
+        {productosVisibles.length === 0 && !errorMenu && (
+          <p className="vacio">{busquedaProducto.trim() ? `Sin resultados para "${busquedaProducto.trim()}"` : 'No hay productos en esta categoría.'}</p>
+        )}
       </main>
 
       <div id="capaFlotante">

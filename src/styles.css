@@ -226,6 +226,15 @@ body {
 
 /* --- Categorías --- */
 .categorias-wrap { position: relative; }
+.busqueda-productos-wrap { position: relative; margin: 10px 16px; }
+.input-busqueda-productos {
+  width: 100%; background: var(--bg-elevado); color: var(--text); border: 1px solid var(--card-borde);
+  border-radius: 12px; padding: 12px 40px 12px 14px; font-size: 15px; box-sizing: border-box;
+}
+.limpiar-busqueda {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; color: var(--text-dim); font-size: 16px; padding: 4px 6px;
+}
 .categorias {
   display: flex;
   gap: 10px;
