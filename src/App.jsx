@@ -104,6 +104,7 @@ export default function App() {
   const [modalDividir, setModalDividir] = useState(false)
   const [modalPagarCuenta, setModalPagarCuenta] = useState(false)
   const [metodoPagoCuenta, setMetodoPagoCuenta] = useState('efectivo')
+  const [pasoPagoCuenta, setPasoPagoCuenta] = useState('efectivo')
   const [montoEfectivoMixtoCuenta, setMontoEfectivoMixtoCuenta] = useState('')
   const [comprobanteCuentaUrl, setComprobanteCuentaUrl] = useState('')
   const [comprobanteCuentaHash, setComprobanteCuentaHash] = useState(null)
@@ -114,6 +115,7 @@ export default function App() {
   const [personasDividir, setPersonasDividir] = useState(2)
 
   const [metodoPago, setMetodoPago] = useState('efectivo')
+  const [pasoPago, setPasoPago] = useState('efectivo')
   const [montoEfectivoMixto, setMontoEfectivoMixto] = useState('')
   const [comprobanteUrl, setComprobanteUrl] = useState(null)
   const [comprobanteHash, setComprobanteHash] = useState(null)
@@ -1239,13 +1241,19 @@ export default function App() {
             <p className="pago-titulo">Total de toda la noche: <strong>{money(cuentaPedidos.reduce((s, p) => s + Number(p.total), 0))}</strong></p>
             <p className="pago-titulo">¿Cómo vas a pagar?</p>
             <div className="pago-metodos">
-              {METODOS_PAGO.filter((m) => m.id === 'efectivo' || (m.id === 'mixto' && ['llave_nequi','llave_daviplata','llave_bre_b'].some((k) => bar[k])) || bar[m.llaveField]).map((m) => (
-                <button key={m.id} className={`pago-btn ${m.id === 'mixto' ? 'pago-btn-mixto' : ''} ${metodoPagoCuenta === m.id ? 'activo' : ''}`} onClick={() => setMetodoPagoCuenta(m.id)}>
-                  {m.label}
-                  {m.ayuda && <span className="pago-btn-ayuda">{m.ayuda}</span>}
-                </button>
-              ))}
+              <button className={`pago-btn ${pasoPagoCuenta === 'efectivo' ? 'activo' : ''}`} onClick={() => { setPasoPagoCuenta('efectivo'); setMetodoPagoCuenta('efectivo') }}>💵 Efectivo</button>
+              <button className={`pago-btn ${pasoPagoCuenta === 'transferencia' ? 'activo' : ''}`} onClick={() => setPasoPagoCuenta('transferencia')}>📱 Transferencia</button>
             </div>
+            {pasoPagoCuenta === 'transferencia' && (
+              <div className="pago-metodos" style={{ marginTop: 10 }}>
+                {METODOS_PAGO.filter((m) => m.id !== 'efectivo' && (m.id === 'mixto' ? ['llave_nequi','llave_daviplata','llave_bre_b'].some((k) => bar[k]) : bar[m.llaveField])).map((m) => (
+                  <button key={m.id} className={`pago-btn ${m.id === 'mixto' ? 'pago-btn-mixto' : ''} ${metodoPagoCuenta === m.id ? 'activo' : ''}`} onClick={() => setMetodoPagoCuenta(m.id)}>
+                    {m.label}
+                    {m.ayuda && <span className="pago-btn-ayuda">{m.ayuda}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
             {metodoPagoCuenta === 'mixto' && (
               <div className="pago-detalle">
                 <p className="pago-numero">¿Cuánto vas a pagar en efectivo?</p>
@@ -1329,13 +1337,19 @@ export default function App() {
               <>
                 <p className="pago-titulo">¿Cómo vas a pagar?</p>
                 <div className="pago-metodos">
-                  {METODOS_PAGO.filter((m) => m.id === 'efectivo' || (m.id === 'mixto' && ['llave_nequi','llave_daviplata','llave_bre_b'].some((k) => bar[k])) || bar[m.llaveField]).map((m) => (
-                    <button key={m.id} className={`pago-btn ${m.id === 'mixto' ? 'pago-btn-mixto' : ''} ${metodoPago === m.id ? 'activo' : ''}`} onClick={() => setMetodoPago(m.id)}>
-                      {m.label}
-                      {m.ayuda && <span className="pago-btn-ayuda">{m.ayuda}</span>}
-                    </button>
-                  ))}
+                  <button className={`pago-btn ${pasoPago === 'efectivo' ? 'activo' : ''}`} onClick={() => { setPasoPago('efectivo'); setMetodoPago('efectivo') }}>💵 Efectivo</button>
+                  <button className={`pago-btn ${pasoPago === 'transferencia' ? 'activo' : ''}`} onClick={() => setPasoPago('transferencia')}>📱 Transferencia</button>
                 </div>
+                {pasoPago === 'transferencia' && (
+                  <div className="pago-metodos" style={{ marginTop: 10 }}>
+                    {METODOS_PAGO.filter((m) => m.id !== 'efectivo' && (m.id === 'mixto' ? ['llave_nequi','llave_daviplata','llave_bre_b'].some((k) => bar[k]) : bar[m.llaveField])).map((m) => (
+                      <button key={m.id} className={`pago-btn ${m.id === 'mixto' ? 'pago-btn-mixto' : ''} ${metodoPago === m.id ? 'activo' : ''}`} onClick={() => setMetodoPago(m.id)}>
+                        {m.label}
+                        {m.ayuda && <span className="pago-btn-ayuda">{m.ayuda}</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {metodoPago === 'mixto' && (
                   <div className="pago-detalle">
                     <p className="pago-numero">¿Cuánto vas a pagar en efectivo?</p>
