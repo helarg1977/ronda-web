@@ -97,6 +97,12 @@ export default function App() {
   const [upsell, setUpsell] = useState(null)
   const [calificacion, setCalificacion] = useState(0)
   const [propinaEnviada, setPropinaEnviada] = useState(false)
+  const [mostrarResena, setMostrarResena] = useState(false)
+  const [resenaPedidoId, setResenaPedidoId] = useState(null)
+  const [resenaEstrellas, setResenaEstrellas] = useState(0)
+  const [resenaFacilidad, setResenaFacilidad] = useState(0)
+  const [resenaComentario, setResenaComentario] = useState('')
+  const [resenaEnviada, setResenaEnviada] = useState(false)
   const [pidioCuenta, setPidioCuenta] = useState(false)
   const [topProductoId, setTopProductoId] = useState(null)
   const [historialAbierto, setHistorialAbierto] = useState(true)
@@ -249,7 +255,7 @@ export default function App() {
 
       const { data: barData, error: barErr } = await supabase
         .from('bares')
-        .select('id, nombre, logo_url, foto_portada, activo, llave_nequi, llave_daviplata, llave_bre_b, propinas_habilitadas, hora_pico_activa')
+        .select('id, nombre, logo_url, foto_portada, activo, llave_nequi, llave_daviplata, llave_bre_b, propinas_habilitadas, hora_pico_activa, enlace_google_resenas')
         .eq('id', mesaData.bar_id)
         .eq('activo', true)
         .maybeSingle()
@@ -834,6 +840,7 @@ export default function App() {
     const monto = Math.round(pedido.total * pct)
     await supabase.from('propinas').insert({ pedido_id: pedido.id, mesero_id: pedido.mesero_id || null, monto, calificacion: calificacion || null })
     mostrarToast(`¡Gracias! Propina de ${money(monto)} registrada 🙌`)
+    abrirResena()
     setTimeout(() => {
       localStorage.removeItem(storageKey(mesa.id))
       localStorage.setItem(`ronda_ultima_entrega_${mesa.id}`, String(Date.now()))
@@ -845,9 +852,39 @@ export default function App() {
     if (calificacion > 0 && pedido) {
       await supabase.from('propinas').insert({ pedido_id: pedido.id, mesero_id: pedido.mesero_id || null, monto: 0, calificacion })
     }
+    abrirResena()
     localStorage.removeItem(storageKey(mesa.id))
     localStorage.setItem(`ronda_ultima_entrega_${mesa.id}`, String(Date.now()))
     setPedido(null)
+  }
+
+  function abrirResena() {
+    if (!pedido || !bar) return
+    if (localStorage.getItem(`ronda_resena_${pedido.id}`)) return
+    setResenaPedidoId(pedido.id)
+    setResenaEstrellas(0)
+    setResenaFacilidad(0)
+    setResenaComentario('')
+    setResenaEnviada(false)
+    setMostrarResena(true)
+  }
+
+  function cerrarResena() {
+    if (resenaPedidoId) localStorage.setItem(`ronda_resena_${resenaPedidoId}`, '1')
+    setMostrarResena(false)
+  }
+
+  async function enviarResena() {
+    if (!resenaEstrellas || !bar) return
+    localStorage.setItem(`ronda_resena_${resenaPedidoId}`, '1')
+    await supabase.from('resenas').insert({
+      bar_id: bar.id,
+      pedido_id: resenaPedidoId,
+      estrellas: resenaEstrellas,
+      facilidad: resenaFacilidad || null,
+      comentario: resenaComentario.trim() || null,
+    })
+    setResenaEnviada(true)
   }
 
   async function enviarSolicitud(tipo) {
@@ -1087,6 +1124,45 @@ export default function App() {
             <button disabled={propinaEnviada} onClick={() => enviarPropina(0.20)}>20% · {money(Math.round((pedido?.total || 0) * 0.20))}</button>
           </div>
           <button className="btn-secundario" onClick={terminarSinPropina}>No, gracias</button>
+        </div>
+      )}
+
+      {mostrarResena && (
+        <div className="resena-fondo">
+          <div className="resena-box">
+            {!resenaEnviada ? (
+              <>
+                <p className="resena-titulo">¿Cómo estuvo tu visita en {bar?.nombre}?</p>
+                <div className="estrellas">
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <span key={n} className={`estrella ${n <= resenaEstrellas ? 'estrella-activa' : ''}`} onClick={() => setResenaEstrellas(n)}>★</span>
+                  ))}
+                </div>
+                <p className="resena-sub">¿Qué tan fácil fue pedir con Ronda? (opcional)</p>
+                <div className="estrellas estrellas-chicas">
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <span key={n} className={`estrella ${n <= resenaFacilidad ? 'estrella-activa' : ''}`} onClick={() => setResenaFacilidad(n)}>★</span>
+                  ))}
+                </div>
+                <textarea className="resena-texto" rows={3} maxLength={400} placeholder="Cuéntanos más (opcional)" value={resenaComentario} onChange={(e) => setResenaComentario(e.target.value)} />
+                <button className="btn-primario" disabled={!resenaEstrellas} onClick={enviarResena}>Enviar</button>
+                <button className="btn-secundario" onClick={cerrarResena}>Ahora no</button>
+              </>
+            ) : (
+              <>
+                <p className="resena-titulo">¡Gracias por tu opinión! 🙌</p>
+                {resenaEstrellas >= 4 && bar?.enlace_google_resenas ? (
+                  <>
+                    <p className="resena-sub">¿Nos ayudas a que más gente nos encuentre? Es un toque.</p>
+                    <a className="btn-primario resena-google" href={bar.enlace_google_resenas} target="_blank" rel="noopener noreferrer" onClick={cerrarResena}>⭐ Dejar reseña en Google</a>
+                    <button className="btn-secundario" onClick={cerrarResena}>Cerrar</button>
+                  </>
+                ) : (
+                  <button className="btn-primario" onClick={cerrarResena}>Cerrar</button>
+                )}
+              </>
+            )}
+          </div>
         </div>
       )}
 
